@@ -3,5 +3,5 @@
 <menu>
 — [Code repository](https://codeberg.org/ukrudt.net/lichen-markdown) 
 — [Markdown cheatsheet](/cheatsheet.md) 
-— [Ancestor lichen](https://lichen.sensorstation.co/) — 
+— [second](/second.md) —
 </menu>
