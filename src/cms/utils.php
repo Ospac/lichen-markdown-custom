@@ -112,7 +112,7 @@ function render_func($path, $ext, $_src = "")
     ob_start();
     include SRC_DIR . "/theme/layout.php";
     $output = ob_get_clean();
-    return $output;
+    return rewrite_asset_paths($output, $path);
 }
 
 /*
@@ -263,3 +263,21 @@ function render_component($name) {
     return $html;
 }
 
+// Return an asset URL relative to the rendered page's directory.
+function asset_url($pagePath, $assetPath) {
+    $pageDirectory = trim(str_replace('\\', '/', dirname($pagePath)), '/');
+    $depth = $pageDirectory === '' ? 0 : count(explode('/', $pageDirectory));
+
+    return str_repeat('../', $depth) . ltrim($assetPath, '/');
+}
+
+// Static pages cannot resolve root-relative asset URLs when served below a domain root.
+function rewrite_asset_paths($html, $pagePath) {
+    return preg_replace_callback(
+        '/(["\'])\/assets\/([^"\']*)/',
+        function ($matches) use ($pagePath) {
+            return $matches[1] . asset_url($pagePath, 'assets/' . $matches[2]);
+        },
+        $html
+    );
+}
