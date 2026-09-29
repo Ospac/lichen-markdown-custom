@@ -2,6 +2,6 @@
 
 <menu>
 — [Code repository](https://codeberg.org/ukrudt.net/lichen-markdown) 
-— [Markdown cheatsheet](/cheatsheet.md) 
-— [second](/second.md) —
+— [Markdown cheatsheet](cheatsheet.md) 
+— [second](second.md) —
 </menu>

@@ -39,6 +39,15 @@ if (file_exists($filePath) && is_file($filePath)) {
     return false;
 }
 
+// Serve explicitly requested static build files without appending .html again.
+if (str_ends_with($requestedFile, '.html')) {
+    $distHtml = DIST_DIR . '/' . $requestedFile;
+    if (file_exists($distHtml) && is_file($distHtml)) {
+        readfile($distHtml);
+        return true;
+    }
+}
+
 // if the requested file doesn't contain .php
 if (!preg_match('/\.php/' , $requestedFile)) {
 

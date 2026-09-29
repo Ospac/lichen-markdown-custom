@@ -112,7 +112,8 @@ function render_func($path, $ext, $_src = "")
     ob_start();
     include SRC_DIR . "/theme/layout.php";
     $output = ob_get_clean();
-    return rewrite_asset_paths($output, $path);
+    $output = rewrite_asset_paths($output, $path);
+    return rewrite_internal_links($output, $path);
 }
 
 /*
@@ -277,6 +278,54 @@ function rewrite_asset_paths($html, $pagePath) {
         '/(["\'])\/assets\/([^"\']*)/',
         function ($matches) use ($pagePath) {
             return $matches[1] . asset_url($pagePath, 'assets/' . $matches[2]);
+        },
+        $html
+    );
+}
+
+// Static builds expose rendered Markdown files as .html files, not .md routes.
+function rewrite_internal_links($html, $pagePath) {
+    return preg_replace_callback(
+        '/(<a\b[^>]*\bhref\s*=\s*)(["\'])([^"\']*\.md(?:[?#][^"\']*)?)\2/i',
+        function ($matches) use ($pagePath) {
+            $target = $matches[3];
+            if (preg_match('/^\s*(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i', $target)) {
+                return $matches[0];
+            }
+
+            preg_match('/^([^?#]*)(.*)$/', $target, $parts);
+            $targetPath = preg_replace('/\.md$/i', '.html', $parts[1]);
+            $pagePath = preg_replace('/\.md$/i', '.html', $pagePath);
+            $pageDirectory = trim(dirname($pagePath), '/');
+            $targetSegments = explode('/', trim($targetPath, '/'));
+
+            if ($parts[1][0] !== '/') {
+                $targetSegments = array_merge(
+                    $pageDirectory === '' ? [] : explode('/', $pageDirectory),
+                    $targetSegments
+                );
+            }
+
+            $resolved = [];
+            foreach ($targetSegments as $segment) {
+                if ($segment === '' || $segment === '.') {
+                    continue;
+                }
+                if ($segment === '..') {
+                    array_pop($resolved);
+                } else {
+                    $resolved[] = $segment;
+                }
+            }
+
+            $baseSegments = $pageDirectory === '' ? [] : explode('/', $pageDirectory);
+            while (count($baseSegments) > 0 && count($resolved) > 0 && $baseSegments[0] === $resolved[0]) {
+                array_shift($baseSegments);
+                array_shift($resolved);
+            }
+
+            $relativePath = str_repeat('../', count($baseSegments)) . implode('/', $resolved);
+            return $matches[1] . $matches[2] . $relativePath . $parts[2] . $matches[2];
         },
         $html
     );
