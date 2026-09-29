@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>이끼-마크다운</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<link rel="stylesheet" href="assets/stylesheet.css">
+	</head>
+	<body>
+		<header>
+			<h1>이끼-마크다운</h1>
+
+<p><menu>
+— <a href="https://codeberg.org/ukrudt.net/lichen-markdown">Code repository</a> 
+— <a href="/cheatsheet.md">Markdown cheatsheet</a> 
+— <a href="/second.md">second</a> — 
+</menu></p>
+			<p>brief.md</p>
+		</header>
+		<main>
+			<h1>Markdown 도우미</h1>
+
+<p><em>이 파일은 lichen CMS에서 원본과 함께 보는 것을 전제로 합니다. 이 <a href="cms/edit.php/cheatsheet.md">링크</a>를 따라가거나 마우스 오른쪽 버튼을 클릭한 뒤 <code>소스 보기</code>를 선택하면 원본을 확인할 수 있습니다. 이 Markdown 문법의 자세한 내용은 <a href="https://github.com/michelf/php-markdown?tab=readme-ov-file">PHP Markdown</a> 문서를 참고하세요.</em></p>
+
+<h2>제목</h2>
+
+<h1>제목 1단계</h1>
+
+<h2>제목 2단계</h2>
+
+<h3>제목 3단계</h3>
+
+<h2>텍스트 서식</h2>
+
+<p><em>기울임꼴 텍스트</em>, <strong>굵은 텍스트</strong>, <code>코드 텍스트</code>를 사용할 수 있습니다. 코드 텍스트는 백틱으로 감싸서 작성합니다. 일부 키보드에서는 백틱 키를 찾기 어려울 수 있으니 확인해 보세요.</p>
+
+<h2>인용문</h2>
+
+<blockquote>
+  <p>우리는 자본주의 안에서 살아간다. 자본주의의 힘은 벗어날 수 없을 것처럼 보인다. 왕의 신성한 권리도 그랬다. 인간의 힘이라면 무엇이든 인간의 저항과 노력으로 맞서고 바꿀 수 있다. 저항과 변화는 예술에서 시작되는 경우가 많고, 특히 우리의 예술, 즉 말의 예술에서 시작되는 경우가 많다.</p>
+</blockquote>
+
+<p>Ursula K. Le Guin</p>
+
+<h2>번호 매기기 목록</h2>
+
+<ol>
+<li>첫번째 항목</li>
+<li>두번째 항목</li>
+<li>세번째 항목</li>
+</ol>
+
+<h2>글머리 기호 목록</h2>
+
+<ul>
+<li>항목 하나</li>
+<li>또 다른 항목</li>
+<li>또 하나의 항목</li>
+</ul>
+
+<h2>가로줄</h2>
+
+<hr />
+
+<h2>링크</h2>
+
+<p>이 문서는 <a href="https://lichen.sensorstation.co/unmaintained//">lichen의 원래 PHP 버전</a>을 포크한 것입니다.</p>
+
+<h2>로컬 이미지</h2>
+
+<p><img src="assets/dandi.jpg" alt="여기에 이미지 대체 텍스트를 입력하세요" /></p>
+
+<h2>외부 이미지</h2>
+
+<p><img src="https://cdn.dribbble.com/users/1570563/screenshots/5955986/dandelion_illustration_final_2_4x.jpg" alt="여기에 이미지 대체 텍스트를 입력하세요" /></p>
+
+<h2>표</h2>
+
+<table>
+<thead>
+<tr>
+  <th>문법</th>
+  <th>멋진가요?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Markdown</td>
+  <td>네</td>
+</tr>
+<tr>
+  <td>Gemini</td>
+  <td>네</td>
+</tr>
+</tbody>
+</table>
+
+<h2>코드 블록</h2>
+
+<pre><code class="ascii">       _                   _ _                _
+ _   _| | ___ __ _   _  __| | |_   _ __   ___| |_
+| | | | |/ / '__| | | |/ _` | __| | '_ \ / _ \ __|
+| |_| |   &lt;| |  | |_| | (_| | |_ _| | | |  __/ |_
+ \__,_|_|\_\_|   \__,_|\__,_|\__(_)_| |_|\___|\__|
+</code></pre>
+
+<h2>각주</h2>
+
+<p>각주가 있는 문장입니다. <sup id="fnref:1"><a href="#fn:1" class="footnote-ref" role="doc-noteref">1</a></sup></p>
+
+<h2>코드 주석</h2>
+
+<!-- This is a comment -->
+
+<p>주석은 화면에 표시되지 않습니다. 페이지 원본을 편집하는 사람에게 메모를 남길 때 사용합니다.</p>
+
+<h2>제목 ID</h2>
+
+<h3 id="cool-id">ID가 있는 제목</h3>
+
+<p><a href="#cool-id">제목 ID로 연결되는 링크입니다</a></p>
+
+<h2>정의 목록</h2>
+
+<dl>
+<dt>용어</dt>
+<dd>정의</dd>
+</dl>
+
+<h2>특수 문자 이스케이프</h2>
+
+<p>Markdown 기호를 문법이 아닌 일반 문자로 사용하려면 이스케이프해야 합니다. 이때 백슬래시를 사용합니다: &#92; &#35; &#42; &#95; &#42;&#42; 등.</p>
+
+<h2>HTML 삽입</h2>
+
+<p>아래와 같이 순수한 HTML을 Markdown 안에 삽입할 수 있습니다.</p>
+
+<div style="background-color: #ff8800">
+<p>주황색 배경의 텍스트</p>
+</div>
+
+<p>HTML 안에 Markdown을 넣으려면 <code>markdown="1"</code> 속성을 지정하세요.</p>
+
+<div style="background-color: #ff8800">
+
+<h3>주황색 배경의 제목</h3>
+
+</div>
+
+<div class="footnotes" role="doc-endnotes">
+<hr />
+<ol>
+
+<li id="fn:1" role="doc-endnote">
+<p>이것은 각주입니다.&#160;<a href="#fnref:1" class="footnote-backref" role="doc-backlink">&#8617;&#xFE0E;</a></p>
+</li>
+
+</ol>
+</div>
+		</main>
+		<footer>
+			<p>Low consumption website &bull; No trackers</p>
+
+<p><a class="lichen-plug" href="https://lichen.commoninternet.net">
+  <img src="assets/lichen-small.svg" width="16" height="16" alt="Lichen" style="margin-bottom: 0.25rem;"></p>
+
+<p><small>Built with Lichen-Markdown</small></p>
+
+<p></a></p>
+		</footer>
+	</body>
+</html>
