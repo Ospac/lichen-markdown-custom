@@ -32,13 +32,7 @@ $_SERVER['PATH_INFO'] = str_replace(" ", "_", $_SERVER['PATH_INFO']);
 	$filter = new RecursiveCallbackFilterIterator($directory, function ($current, $key, $iterator) {
 		if ($current->getFilename()[0] === '.') { // skip hidden files and directories.
 			return FALSE;
-		} elseif ($key === '../cms') { // skip `cms` directory
-			return FALSE;
-		} elseif ($key === '../theme') { // skip `theme` directory
-			return FALSE;
-		} elseif ($key === '../dist') { // skip `dist` directory
-			return FALSE;
-		} elseif ($key === '../update') { // skip `dist` directory
+		} elseif (in_array($current->getBasename(), ['cms', 'theme', 'src', 'dist', 'update', '.git'])) {
 			return FALSE;
 		}
 		return TRUE;
@@ -57,7 +51,7 @@ $_SERVER['PATH_INFO'] = str_replace(" ", "_", $_SERVER['PATH_INFO']);
 		}
 		$fileTree = array_merge_recursive($fileTree, $path);
 	}
-	$fileTree = array(basename(realpath('../')) => $fileTree);
+	$fileTree = array(basename(PROJECT_DIR) => $fileTree);
 	return $fileTree;
 } ?>
 <?php function render_file($filename, $base)
@@ -195,7 +189,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 					$dir = dirname($newUrl);
 					// we re-render the whole filetree
 					// and then let the front-end just grab the part they want to replace
-					$fileTree = get_filetree("../");
+					$fileTree = get_filetree(PROJECT_DIR);
 					render_filetree($fileTree, "/", 0);
 				} else {
 					render_file(basename($newUrl), $base);
@@ -212,7 +206,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 	}
 	// if no action query param was supplied, then process the default action 
 	else {
-		$_dest = fopen(".." . $src_path, "w");
+		$_dest = fopen(PROJECT_DIR . $src_path, "w");
 		if (!$_dest) {
 			http_response_code(500);
 			header('Content-Type: text/plain');
@@ -223,7 +217,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 		$written = stream_copy_to_stream($_src, $_dest);
 		fclose($_dest);
 		// if it was a modification of header or footer then we need to rebuild the whole site to dist
-		if ($src_path == "/header.md" || $src_path == "/footer.md") {
+		if ($src_path == "/page/header.md" || $src_path == "/page/footer.md") {
 			save_all_to_dist(SRC_DIR);
 		}
 		// otherwise just save the changed file to dist
@@ -264,7 +258,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 		// replace extension with new format
 		$public_path = dirname($_SERVER['PATH_INFO']) . "/" . basename($new_basename, "." . $extension) . "." . $dest_format;
 
-		$_dest = fopen(".." . $public_path, "x");
+		$_dest = fopen(PROJECT_DIR . $public_path, "x");
 		if (!$_dest) {
 			http_response_code(400);
 			header('Content-Type: text/plain');
@@ -297,7 +291,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 		fclose($_dest);
 	} else {
 		$public_path = dirname($_SERVER['PATH_INFO']) . "/" . $new_basename;
-		$_dest = fopen(".." . $public_path, "x");
+		$_dest = fopen(PROJECT_DIR . $public_path, "x");
 		if (!$_dest) {
 			http_response_code(400);
 			header('Content-Type: text/plain');
@@ -342,7 +336,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 	http_response_code(204);
 	exit(0);
 } elseif ($_SERVER['REQUEST_METHOD'] === 'PATCH') {
-	mkdir(".." . $_SERVER['PATH_INFO']);
+	mkdir(PROJECT_DIR . $_SERVER['PATH_INFO']);
 	http_response_code(200);
 	header('Content-Type: text/html');
 	$dir = dirname($_SERVER['PATH_INFO']);
@@ -928,8 +922,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 	<div class="container">
 		<div class="panel" id="panel_editor">
 			<textarea id="content" autocomplete="off" spellcheck="false" style="flex-grow: 1;"><?php
-			if (file_exists(".." . $_SERVER['PATH_INFO'])) {
-				echo file_get_contents(".." . $_SERVER['PATH_INFO']);
+			if (file_exists(PROJECT_DIR . $_SERVER['PATH_INFO'])) {
+				echo file_get_contents(PROJECT_DIR . $_SERVER['PATH_INFO']);
 			}
 			?></textarea>
 			<div id="help" class="hidden">
@@ -953,7 +947,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 					<code>[external link](https://abc.xyz)<br>[internal link](/page.md)<br>![image alt](/assets/image.jpg)</code>
 					<code>`preformatted`<br>> blockquote</code>
 					<code>&lt;span markdown="1"&gt;<br/>**Markdown** inside<br/> *HTML*&lt;/span&gt;</code>
-					<a href="/cms/edit.php/cheatsheet.md" target="_blank">Markdown cheatsheet</a>
+					<a href="/cms/edit.php/page/cheatsheet.md" target="_blank">Markdown cheatsheet</a>
 
 				<?php endif; ?>
 
@@ -974,7 +968,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 		<div class="panel hidden" id="panel_files">
 			<nav id="files" style="flex-grow: 1;">
 				<?php // top-level dir
-				$fileTree = get_filetree("../");
+				$fileTree = get_filetree(PROJECT_DIR);
 				?>
 				<?php render_filetree($fileTree, "/", 0) ?>
 			</nav>

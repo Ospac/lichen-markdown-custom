@@ -1,7 +1,7 @@
 <?php
 /**
  * This file is designed in such a way that it can be run as a standalone script via the command:
- * php cms/build.php
+ * php src/cms/build.php
  *
  * or it can be accessed via a web request to the URL /cms/build.php
  *
@@ -16,7 +16,7 @@ try {
     require_once "utils.php";
 
     // Change to the CMS directory
-    chdir(SRC_DIR . "/cms");
+    chdir(CMS_DIR);
 
     // delete the contents of dist before re-building
     if (is_dir(DIST_DIR)) {

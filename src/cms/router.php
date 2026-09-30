@@ -1,94 +1,81 @@
 <?php
-require_once "utils.php";
+require_once __DIR__ . "/utils.php";
 
-// the requested URI
-$requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$requestUri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+$requestUri = '/' . ltrim(urldecode($requestUri), '/');
 
-// remove leading slash for easier handling
-$requestedFile = ltrim($requestUri, '/');
-$filePath = SRC_DIR . '/' . $requestedFile;
-
-// if the request is for the root directory or a folder, check for index files
-if ($requestUri === '/' || substr($requestUri, -1) === '/') {
-    // check for /index.html or /subfolder/index.html
-    $indexHtml = SRC_DIR . $requestUri . 'index.html';
-    if (file_exists($indexHtml)) {
-        readfile($indexHtml); // Serve the index.html file
-        return true;
-    }
-
-    // check for /dist/index.html or /dist/subfolder/index.html
-    $distHtml = DIST_DIR . $requestUri . 'index.html';
-    if (file_exists($distHtml)) {
-        readfile($distHtml); // Serve the cached index.html file
-        return true;
-    }
-
-    // check for /index.md or /subfolder/index.md
-    $relPath = $requestUri . 'index.md';
-    $indexMarkdown = SRC_DIR . $relPath;
-    if (file_exists($indexMarkdown)) {
-        // handle this route later as /cms/render.php/file.md
-        $requestedFile = "/cms/render.php" . $relPath;
-    }
+if (str_contains($requestUri, '..')) {
+    http_response_code(400);
+    exit('Invalid path');
 }
 
-// if the request file exists, then serve it as it is
-// (this is for all files that are not .php or .md)
-if (file_exists($filePath) && is_file($filePath)) {
+// Source and application files are not public URLs.
+if (preg_match('#^/(src|page|dist)(/|$)#', $requestUri)) {
+    http_response_code(404);
+    exit('404 Not Found');
+}
+
+// CMS scripts remain under src/cms, while their public URLs stay /cms/....
+if (preg_match('#^/cms/([^/]+\.php)(/.*)?$#', $requestUri, $matches)) {
+    $script = CMS_DIR . '/' . $matches[1];
+    if (!is_file($script)) {
+        http_response_code(404);
+        exit('404 Not Found');
+    }
+    $_SERVER['PATH_INFO'] = $matches[2] ?? '';
+    if ($matches[1] === 'render.php') {
+        unset($_SERVER['REDIRECT_URL']);
+    }
+    include $script;
+    return true;
+}
+
+// Serve files outside the page source directly (assets, favicon, etc.).
+$staticPath = PROJECT_DIR . $requestUri;
+if (is_file($staticPath) && !str_ends_with(strtolower($staticPath), '.md')) {
     return false;
 }
 
-// Serve explicitly requested static build files without appending .html again.
-if (str_ends_with($requestedFile, '.html')) {
-    $distHtml = DIST_DIR . '/' . $requestedFile;
-    if (file_exists($distHtml) && is_file($distHtml)) {
-        readfile($distHtml);
+$publicPath = $requestUri;
+$markdownPath = PAGE_DIR . $publicPath . '.md';
+$indexMarkdownPath = PAGE_DIR . rtrim($publicPath, '/') . '/index.md';
+
+if ($requestUri === '/' || str_ends_with($requestUri, '/')) {
+    if (is_file($indexMarkdownPath)) {
+        $_SERVER['PATH_INFO'] = content_relative_path(rtrim($publicPath, '/') . '/index.md');
+        unset($_SERVER['REDIRECT_URL']);
+        include CMS_DIR . '/render.php';
         return true;
     }
-}
-
-// if the requested file doesn't contain .php
-if (!preg_match('/\.php/' , $requestedFile)) {
-
-    // first try file.html
-    $htmlFile = SRC_DIR . '/' . $requestedFile . '.html';
-    if (file_exists($htmlFile)) {
-        readfile($htmlFile);  // serve directly if found
-        return true;
-    }
-
-    // then try dist/file.html
-    $htmlFile = DIST_DIR . $requestedFile . '.html';
-    if (file_exists($htmlFile)) {
-        readfile($htmlFile);  // serve directly if found
-        return true;
-    }
-
-    // then try file.md, and pass to render.php if found
-    $markdownFile = SRC_DIR . '/' . $requestedFile . '.md';
-    if (file_exists($markdownFile)) {
-        // handle this route later as /cms/render.php?file.md
-        $requestedFile = "/cms/render.php/" . $requestedFile . '.md';
-    }
-}
-
-// Regular expression to split a url between the script name and the path afterwards
-// e.g. /cms/edit.php/blue.md gets split into /cms/edit.php and /blue.md
-$pattern = '/(\/[^\/]+\.php)(\/.*)$/';
-
-// Check if the pattern matches
-if (preg_match($pattern, $requestedFile, $matches)) {
-    $script = ltrim($matches[1], '/');
-    $path = $matches[2];
-    $_SERVER['PATH_INFO'] = $path;
-    chdir(SRC_DIR . "/cms");
-    include $script;
+} elseif (is_file($markdownPath)) {
+    $_SERVER['PATH_INFO'] = content_relative_path($publicPath . '.md');
+    unset($_SERVER['REDIRECT_URL']);
+    include CMS_DIR . '/render.php';
     return true;
-} else {
-    echo "No match found.\n";
 }
 
-// if no match, return a 404 error
+// Explicit .html URLs render the corresponding Markdown source in development.
+if (str_ends_with($requestUri, '.html')) {
+    $markdownPath = PAGE_DIR . substr($requestUri, 0, -5) . '.md';
+    if (is_file($markdownPath)) {
+        $_SERVER['PATH_INFO'] = content_relative_path(substr($requestUri, 0, -5) . '.md');
+        unset($_SERVER['REDIRECT_URL']);
+        include CMS_DIR . '/render.php';
+        return true;
+    }
+}
+
+// Fall back to the static build when no source page is available.
+$distPath = DIST_DIR . $requestUri;
+if ($requestUri === '/' || str_ends_with($requestUri, '/')) {
+    $distPath = DIST_DIR . rtrim($requestUri, '/') . '/index.html';
+} elseif (!pathinfo($requestUri, PATHINFO_EXTENSION)) {
+    $distPath = DIST_DIR . $requestUri . '.html';
+}
+if (is_file($distPath)) {
+    readfile($distPath);
+    return true;
+}
+
 http_response_code(404);
 echo "404 Not Found";

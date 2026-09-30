@@ -7,7 +7,7 @@
  *
  * either of these ways of calling this will cause a rebuild of a .zip export to assets/export.zip
  *
- * the export contains all of the contents of src (excluding dist) zipped together into a .zip file 
+ * the export contains the project contents (excluding dist) zipped together into a .zip file
  */
 set_include_path(get_include_path() . PATH_SEPARATOR . __DIR__);
 

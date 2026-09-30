@@ -110,7 +110,7 @@ function render_func($path, $ext, $_src = "")
     $title = get_title($header, $body);
 
     ob_start();
-    include SRC_DIR . "/theme/layout.php";
+    include THEME_DIR . "/layout.php";
     $output = ob_get_clean();
     $output = rewrite_asset_paths($output, $path);
     return rewrite_internal_links($output, $path);
@@ -123,10 +123,12 @@ function render_func($path, $ext, $_src = "")
 function save_dist($relative_src_path)
 {
     $ext = pathinfo($relative_src_path, PATHINFO_EXTENSION);
+    $sourcePath = source_path($relative_src_path);
+    $publicPath = content_relative_path($relative_src_path);
     if ($ext == "md") {
-        $_md_src = fopen(SRC_DIR . $relative_src_path, "r") or die("File not found: " . $relative_src_path);
-        $output = render_func($relative_src_path, $ext, $_md_src);
-        $output_dest_path = DIST_DIR . preg_replace('"\.md$"', '.html', $relative_src_path);
+        $_md_src = fopen($sourcePath, "r") or die("File not found: " . $relative_src_path);
+        $output = render_func($publicPath, $ext, $_md_src);
+        $output_dest_path = DIST_DIR . preg_replace('"\.md$"', '.html', $publicPath);
     } else {
         $output_dest_path = DIST_DIR . $relative_src_path;
     }
@@ -142,7 +144,7 @@ function save_dist($relative_src_path)
     // otherwise just create a symlink back to the source file (in order to save space)
     else {
         $targetPath = $output_dest_path;
-        $absoluteSrcPath = SRC_DIR . $relative_src_path;
+        $absoluteSrcPath = $sourcePath;
         @symlink($absoluteSrcPath, $targetPath);
     }
 }
@@ -154,8 +156,11 @@ function save_all_to_dist($dir)
         new RecursiveCallbackFilterIterator(
             new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS),
             function ($current, $key, $iterator) {
-                // Skip directories named "theme", or "cms" or "dist"
-                $skipDirs = ['theme', 'cms', 'dist', 'update'];
+                // Skip application and generated directories.
+                $skipDirs = ['src', 'cms', 'theme', 'dist', 'update', '.git'];
+                if ($current->getPath() === PROJECT_DIR && !in_array($current->getBasename(), ['page', 'assets'])) {
+                    return false;
+                }
                 if ($current->isDir() && in_array($current->getBasename(), $skipDirs)) {
                     return false;  // Skip this directory
                 }
@@ -169,7 +174,12 @@ function save_all_to_dist($dir)
         // process only regular files (not directories)
         if ($file->isFile()) {
             $absolutePath = $file->getRealPath();
-            $relativePath = "/" . str_replace(SRC_DIR . DIRECTORY_SEPARATOR, '', $absolutePath);
+            $relativePath = "/" . str_replace(PROJECT_DIR . DIRECTORY_SEPARATOR, '', $absolutePath);
+            // Only Markdown files under /page are site content. Project docs
+            // such as README.md must not become public pages.
+            if (str_ends_with(strtolower($relativePath), '.md') && !str_starts_with($relativePath, '/page/')) {
+                continue;
+            }
             save_dist($relativePath); // save_dist on the file
         }
     }
@@ -245,10 +255,10 @@ function render_file_if_exist_or_empty_string($path)
 function render_l11n_layout($fileName, $targetPath)
 {
     $pathArray = explode("/", $targetPath);
-    $file_path = SRC_DIR . "/" . $fileName;
-    if ($pathArray[1] == "l11n") {
+    $file_path = PAGE_DIR . "/" . $fileName;
+    if (($pathArray[1] ?? '') == "l11n") {
         $lang = $pathArray[2];
-        $file_path = SRC_DIR . "/l11n" . "/" . $lang . "/" . $fileName;
+        $file_path = PAGE_DIR . "/l11n" . "/" . $lang . "/" . $fileName;
     }
 
     return render_file_if_exist_or_empty_string($file_path);
@@ -256,7 +266,7 @@ function render_l11n_layout($fileName, $targetPath)
 
 // 마크다운 조각 파일을 HTML로 렌더링 (없으면 빈 문자열)
 function render_component($name) {
-    $path = SRC_DIR . "/" . $name . ".md";
+    $path = PAGE_DIR . "/" . $name . ".md";
     if (!file_exists($path)) return "";
     $src = fopen($path, "r");
     $html = markdown_to_html($src);

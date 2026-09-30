@@ -8,7 +8,7 @@ $ext = null;
 $_content = null;
 
 // decodeurl
-$_SERVER['PATH_INFO'] = urldecode($_SERVER['PATH_INFO']);
+    $_SERVER['PATH_INFO'] = urldecode($_SERVER['PATH_INFO']);
 // replace all spaces with underscores
 $_SERVER['PATH_INFO'] = str_replace(" ", "_", $_SERVER['PATH_INFO']);
 
@@ -18,14 +18,18 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $ext = pathinfo($path, PATHINFO_EXTENSION);
 } else if (isset($_SERVER['REDIRECT_URL'])) {
     $path = $_SERVER['REDIRECT_URL'];
-    $_src = fopen(SRC_DIR . $path, "r") or die("File not found: " . $path);
-    $ext = pathinfo(SRC_DIR . $path, PATHINFO_EXTENSION);
-    header("Last-Modified: " . date("r", filemtime(SRC_DIR . $path)));
+    $sourcePath = source_path($path);
+    $_src = fopen($sourcePath, "r") or die("File not found: " . $path);
+    $ext = pathinfo($sourcePath, PATHINFO_EXTENSION);
+    $path = content_relative_path($path);
+    header("Last-Modified: " . date("r", filemtime($sourcePath)));
 } else {
     $path = $_SERVER['PATH_INFO'];
-    $_src = fopen(SRC_DIR . $path, "r") or die("File not found: " . $path);
-    $ext = pathinfo($path, PATHINFO_EXTENSION);
-    header("Last-Modified: " . date("r", filemtime(SRC_DIR . $path)));
+    $sourcePath = source_path($path);
+    $_src = fopen($sourcePath, "r") or die("File not found: " . $path);
+    $ext = pathinfo($sourcePath, PATHINFO_EXTENSION);
+    $path = content_relative_path($path);
+    header("Last-Modified: " . date("r", filemtime($sourcePath)));
 }
 
 $output = render_func($path, $ext, $_src);

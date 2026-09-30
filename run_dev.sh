@@ -24,5 +24,5 @@ kill_port() {
 }
 
 kill_port
-cd "$(dirname "$0")/src" || exit 1
-php -S 127.0.0.1:"$PORT" cms/router.php
+cd "$(dirname "$0")" || exit 1
+php -S 127.0.0.1:"$PORT" -t . src/cms/router.php

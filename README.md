@@ -44,8 +44,8 @@ unzip v1.5.0.zip
 
 You can then run it directly with php:
 ```
-cd lichen-markdown/src; 
-php -S 127.0.0.1:8000 cms/router.php
+cd lichen-markdown
+php -S 127.0.0.1:8000 -t . src/cms/router.php
 ```
 
 You can then navigate to `127.0.0.1:8000` to see the website.
@@ -123,7 +123,7 @@ The Dockerfile in docker/Dockerfile builds a docker image which can be used to s
 
 ```bash
 docker build -t lichen-markdown:latest ./docker/
-docker run -d -p 8000:80 -v $(pwd)/src:/var/www/html lichen-markdown:latest
+docker run -d -p 8000:80 -v $(pwd):/var/www/html lichen-markdown:latest
 ```
 
 ## Usage
@@ -176,13 +176,13 @@ Note that this simple localization always leads the user to the front page of th
 
 ## Project Structure
 
-The "src" folder of the downloaded folder contains an example Lichen-Markdown project with everything needed, including the markdown files for each web page, the cms folder (which contains the php files of the cms), and the theme folder, which contains a layout.php file used for rendering all the markdown pages.
+The "page" folder contains the Markdown files for each web page. The "src" folder contains the application skeleton: the CMS and theme used to render those pages. Static assets live in the top-level "assets" folder.
 
-The "dist" folder is built from the contents of src.
+The "dist" folder is built from the contents of page and assets.
 
-From the command line, dist can be rebuilt via the command: `php cms/build.php`.
+From the project root, dist can be rebuilt via the command: `php src/cms/build.php`.
 
-Dist can also be re-built through the web interface by clicking the "Rebuild" button which becomes visible when hovering over "src" in the editor. 
+Dist can also be re-built through the web interface by clicking the "Rebuild" button in the editor.
 
 Rebuilding "dist" manually like this is actually only necessary if you change files on disc, outside of the Lichen admin UI &mdash; otherwise Lichen will keep src and dist in sync, with dist containing the render HTML versions of files in src. 
 
@@ -194,7 +194,7 @@ However it is also possible to use Lichen-Markdown as a sort of static site gene
 
 "dist" contains a static artifact of the website and rendered HTML. This is more of a custom use-case, but noting this here in case anyone wants to use it like that. Note that for files that are not renders of .md files, dist actually is made up of symbolic links back to the original files (in order to save space, and not have each file duplicated). So if you are copying 'dist' to another server, for example using rsync, you would want to use a command that copies symbolic links as real files, such as `rsync -avL source/ destination/`.
 
-You can also rebuild dist on the command line via the command: `php cms/build.php`.
+You can also rebuild dist on the command line via the command: `php src/cms/build.php`.
 
 
 ## Updating Lichen-markdown
