@@ -14,7 +14,7 @@ $_SERVER['PATH_INFO'] = str_replace(" ", "_", $_SERVER['PATH_INFO']);
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $_src = fopen("php://input", "r");
-    $path = $_SERVER['PATH_INFO'];
+    $path = content_relative_path($_SERVER['PATH_INFO']);
     $ext = pathinfo($path, PATHINFO_EXTENSION);
 } else if (isset($_SERVER['REDIRECT_URL'])) {
     $path = $_SERVER['REDIRECT_URL'];

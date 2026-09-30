@@ -592,6 +592,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 		let scrollX = 0;
 		let scrollY = 0;
 
+		function previewPagePath(path) {
+			path = path.replace(/^\/page(?=\/|$)/, '');
+			if (path === '' || path.endsWith('/')) {
+				return `${path}index.html` || '/index.html';
+			}
+			return path.replace(/\.md$/i, '.html');
+		}
+
+		function setPreviewDocument(html, pagePath = REQ_PATH) {
+			const preview = document.getElementById('preview');
+			const basePath = previewPagePath(pagePath);
+			const baseHref = new URL(basePath, window.location.origin).href;
+			const baseTag = `<base href="${baseHref}">`;
+			const documentWithBase = /<head\b[^>]*>/i.test(html)
+				? html.replace(/<head\b[^>]*>/i, `$&${baseTag}`)
+				: `${baseTag}${html}`;
+
+			preview.srcdoc = documentWithBase;
+		}
+
 		async function applyContent() {
 			const input = document.getElementById('content');
 			const preview = document.getElementById('preview');
@@ -610,8 +630,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 				// (user may have clicked a link)
 			}
 
-			// TODO: Should content-type be change to e.g. css if file is css?
-			let contentType = "text/markdown"
+			// CSS is previewed against the latest rendered page instead of rendered itself.
+			if (REQ_PATH.toLowerCase().endsWith('.css')) {
+				const renderablePreview = localStorage.getItem('renderablePreview');
+				if (renderablePreview) {
+					const preview = document.getElementById('preview');
+					preview.addEventListener('load', () => reloadStylesheet(REQ_PATH), { once: true });
+					setPreviewDocument(renderablePreview, localStorage.getItem('renderablePreviewPath') || '/');
+				}
+				return;
+			}
+
+			let contentType = "text/markdown";
 
 			const res = await fetch('/cms/render.php' + REQ_PATH, {
 				method: 'POST',
@@ -635,18 +665,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 			}, {
 				once: true
 			});
-			// Handle preview of css by displaying the latest non-css file in the preview iframe.
-			let renderablePreview;
-			if (REQ_PATH.includes(".css")) {
-				renderablePreview = localStorage.getItem('renderablePreview') ?? '';
-				preview.srcdoc = renderablePreview;
-				// also reload the css file so the old file does not stay cached
-				reloadStylesheet(REQ_PATH);
-			} else {
-				let _preview = await res.text();
-				localStorage.setItem('renderablePreview', _preview);
-				preview.srcdoc = _preview;
-			}
+			let _preview = await res.text();
+			localStorage.setItem('renderablePreview', _preview);
+			localStorage.setItem('renderablePreviewPath', REQ_PATH);
+			setPreviewDocument(_preview);
 		}
 
 		window.addEventListener('DOMContentLoaded', () => {
@@ -657,9 +679,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 		window.addEventListener('DOMContentLoaded', function () {
 			const onContentInput = debounce(() => {
 				if (REQ_PATH.includes(".css")) {
-					let preview = document.getElementById('preview')
-					// Inject styles into preview
-					preview.contentDocument.body.innerHTML = preview.contentDocument.body.innerHTML + `<style>${document.getElementById('content').value}</style>`;
+					const preview = document.getElementById('preview');
+					const previewDocument = preview.contentDocument;
+					if (previewDocument) {
+						let liveStyle = previewDocument.getElementById('live-preview-style');
+						if (!liveStyle) {
+							liveStyle = previewDocument.createElement('style');
+							liveStyle.id = 'live-preview-style';
+							previewDocument.head.appendChild(liveStyle);
+						}
+						liveStyle.textContent = document.getElementById('content').value;
+					}
 					// enable save button
 					document.getElementById('save').disabled = false;
 				} else {
@@ -703,7 +733,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 			button.innerText = 'Saving...';
 
 			if (REQ_PATH.indexOf(".md") !== -1) {
-				contentType == "text/markdown"
+				contentType = "text/markdown";
 			}
 
 			const res = await fetch('/cms/edit.php' + REQ_PATH, {
@@ -901,14 +931,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 		}
 
 		function reloadStylesheet(filePath) {
-			// Find the <link> element that matches the file path
-			const link = document.querySelector(`link[href*="${filePath}"]`);
+			const preview = document.getElementById('preview');
+			const previewDocument = preview.contentDocument;
+			if (!previewDocument) return;
+
+			const targetPath = new URL(filePath, window.location.origin).pathname;
+			const link = [...previewDocument.querySelectorAll('link[rel="stylesheet"]')]
+				.find((stylesheet) => new URL(stylesheet.href).pathname === targetPath);
 			if (link) {
-				// Create a unique version of the file path by appending a timestamp
-				// note: possibly link.href = link.href would have been sufficient to cause a reload
-				// but some sources say that some browsers need this unique new href to cause the reload
-				const newHref = `${filePath}?v=${new Date().getTime()}`;
-				// Update the href attribute to force reload
+				const stylesheetUrl = new URL(link.href);
+				stylesheetUrl.searchParams.set('v', Date.now());
+				const newHref = stylesheetUrl.href;
 				link.href = newHref;
 				console.log(`Stylesheet reloaded: ${newHref}`);
 			} else {
