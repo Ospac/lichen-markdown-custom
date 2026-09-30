@@ -2,4 +2,4 @@
 
 Welcome! Put your own content here.
 
-![dandi.jpg](/assets/dandi.jpg)
+![dandi.jpg](/assets/image/dandi.jpg)
