@@ -896,15 +896,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 		async function handleUpload(event) {
 			const overlay = document.getElementById('upload-overlay');
 			overlay.classList.remove('hidden');
-			let fileName = event.target.files[0].name.replaceAll(" ", "_");
+			const file = event.target.files[0];
+			let fileName = file.name.replaceAll(" ", "_");
 			if (/[\#\/\\\:\'\"\%\?]+/.test(fileName)) {
 				alert("Filename includes invalid characters!\nFilename cannot include any of the following: #\\/:'\"?%");
 				return;
 			}
+			const isImage = file.type.startsWith('image/') ||
+				/\.(avif|bmp|gif|jpe?g|png|svg|webp)$/i.test(fileName);
+			const uploadPath = isImage ? '/assets/image/' : uploadContextPath;
 			try {
-				const res = await fetch('/cms/edit.php' + uploadContextPath + fileName, {
+				const res = await fetch('/cms/edit.php' + uploadPath + fileName, {
 					method: 'POST',
-					body: event.target.files[0],
+					body: file,
 				});
 
 				if (res.status != 200) {
@@ -914,9 +918,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 				}
 				const newSrc = await res.text();
 				const newNode = new DOMParser().parseFromString(newSrc, 'text/html').body.firstElementChild;
-				document.querySelector(`details[data-path="${uploadContextPath}"] > ol`).appendChild(newNode).scrollIntoView();
+				document.querySelector(`details[data-path="${uploadPath}"] > ol`).appendChild(newNode).scrollIntoView();
 				if (insertUpload) {
-					const filePath = uploadContextPath + fileName;
+					const filePath = uploadPath + fileName;
 					document.getElementById('panel_files').classList.add('hidden');
 					document.getElementById('panel_editor').classList.remove('hidden');
 					const el = document.getElementById('content');
