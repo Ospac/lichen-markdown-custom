@@ -690,6 +690,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 						}
 						liveStyle.textContent = document.getElementById('content').value;
 					}
+					reloadStylesheet(REQ_PATH);
 					// enable save button
 					document.getElementById('save').disabled = false;
 				} else {
@@ -749,11 +750,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 				const body = await res.text();
 				alert('There was an error that prevented the file from being saved.');
 				throw new Error(body);
-			} else {
-				button.disabled = true;
-				button.innerText = 'Saved';
-				contentModified = false;
+				return;
 			}
+
+			button.disabled = true;
+			button.innerText = 'Saved';
+			contentModified = false;
 		}
 
 		async function deleteFile(path) {
