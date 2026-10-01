@@ -157,7 +157,7 @@ function save_all_to_dist($dir)
             new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS),
             function ($current, $key, $iterator) {
                 // Skip application and generated directories.
-                $skipDirs = ['src', 'cms', 'theme', 'dist', 'update', '.git'];
+                $skipDirs = ['src', 'cms', 'theme', 'dist', 'update', '.git', '.obsidian'];
                 if ($current->getPath() === PROJECT_DIR && !in_array($current->getBasename(), ['page', 'assets'])) {
                     return false;
                 }
