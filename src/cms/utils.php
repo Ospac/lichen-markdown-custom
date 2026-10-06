@@ -126,9 +126,23 @@ function save_dist($relative_src_path)
     $sourcePath = source_path($relative_src_path);
     $publicPath = content_relative_path($relative_src_path);
     if ($ext == "md") {
-        $_md_src = fopen($sourcePath, "r") or die("File not found: " . $relative_src_path);
-        $output = render_func($publicPath, $ext, $_md_src);
         $output_dest_path = DIST_DIR . preg_replace('"\.md$"', '.html', $publicPath);
+
+        // Re-render until the displayed value includes the final HTML size.
+        $pageSize = null;
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $_md_src = fopen($sourcePath, "r") or die("File not found: " . $relative_src_path);
+            $output = render_func($publicPath, $ext, $_md_src);
+            $output = rewrite_asset_paths($output, $publicPath);
+            $output = rewrite_internal_links($output, $publicPath);
+            if ($pageSize !== null) {
+                $output = inject_page_size($output, $pageSize);
+            }
+
+            $nextPageSize = format_file_size(calculate_page_size($output, $output_dest_path));
+            if ($nextPageSize === $pageSize) break;
+            $pageSize = $nextPageSize;
+        }
     } else {
         $output_dest_path = DIST_DIR . $relative_src_path;
     }
@@ -272,6 +286,122 @@ function render_component($name) {
     $html = markdown_to_html($src);
     fclose($src);
     return $html;
+}
+
+// page size 계산 함수들
+function format_file_size($bytes) {
+    $units = ['B', 'KB', 'MB', 'GB'];
+    $size = (float) $bytes;
+    $unit = 0;
+    while ($size >= 1024 && $unit < count($units) - 1) {
+        $size /= 1024;
+        $unit++;
+    }
+
+    $precision = $unit === 0 ? 0 : ($size < 10 ? 2 : 1);
+    return number_format($size, $precision, '.', '') . ' ' . $units[$unit];
+}
+
+function inject_page_size($html, $size) {
+    $escapedSize = htmlspecialchars($size, ENT_QUOTES, 'UTF-8');
+    return preg_replace_callback(
+        '/(<([a-z][a-z0-9:-]*)\b[^>]*\bid=["\']page-size["\'][^>]*>).*?(<\/\2>)/is',
+        function ($matches) use ($escapedSize) {
+            return $matches[1] . $escapedSize . $matches[3];
+        },
+        $html,
+        1
+    );
+}
+
+function local_resource_path($url, $basePath) {
+    $url = trim($url);
+    if ($url === '' || preg_match('/^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i', $url)) {
+        return null;
+    }
+
+    $url = preg_split('/[?#]/', $url, 2)[0];
+    if ($url === '') return null;
+
+    if ($url[0] === '/') {
+        $path = PROJECT_DIR . '/' . ltrim($url, '/');
+    } else {
+        $path = dirname($basePath) . '/' . $url;
+    }
+
+    $parts = [];
+    foreach (explode('/', str_replace('\\', '/', $path)) as $part) {
+        if ($part === '' || $part === '.') continue;
+        if ($part === '..') array_pop($parts);
+        else $parts[] = $part;
+    }
+    $resolved = '/' . implode('/', $parts);
+    if (is_file($resolved)) return $resolved;
+
+    // Assets may not have been symlinked into dist yet while a page is built.
+    if (str_starts_with($resolved, DIST_DIR . '/')) {
+        $source = PROJECT_DIR . '/' . ltrim(substr($resolved, strlen(DIST_DIR)), '/');
+        if (is_file($source)) return $source;
+    }
+    return null;
+}
+
+function collect_css_resources($path, &$files, &$visited) {
+    $realPath = realpath($path);
+    if ($realPath === false || isset($visited[$realPath])) return;
+    $visited[$realPath] = true;
+    $files[$realPath] = true;
+
+    $css = file_get_contents($realPath);
+    preg_match_all('/@import\s+(?:url\(\s*)?["\']?([^"\')\s]+)["\']?\s*\)?/i', $css, $imports);
+    preg_match_all('/url\(\s*["\']?([^"\')]+)["\']?\s*\)/i', $css, $urls);
+
+    foreach (array_merge($imports[1], $urls[1]) as $url) {
+        $resource = local_resource_path($url, $realPath);
+        if ($resource === null) continue;
+        if (strtolower(pathinfo($resource, PATHINFO_EXTENSION)) === 'css') {
+            collect_css_resources($resource, $files, $visited);
+        } else {
+            $files[realpath($resource) ?: $resource] = true;
+        }
+    }
+}
+
+function calculate_page_size($html, $outputPath) {
+    $files = [];
+    $visitedCss = [];
+    $htmlSize = strlen($html);
+
+    preg_match_all('/<link\b[^>]*\bhref\s*=\s*["\']([^"\']+)["\'][^>]*>/i', $html, $links);
+    preg_match_all('/<(?:img|script|iframe|audio|video|source|track)\b[^>]*\bsrc\s*=\s*["\']([^"\']+)["\'][^>]*>/i', $html, $srcs);
+    preg_match_all('/<img\b[^>]*\bsrcset\s*=\s*["\']([^"\']+)["\'][^>]*>/i', $html, $srcsets);
+
+    foreach ($links[1] as $url) {
+        $resource = local_resource_path($url, $outputPath);
+        if ($resource === null) continue;
+        if (strtolower(pathinfo($resource, PATHINFO_EXTENSION)) === 'css') {
+            collect_css_resources($resource, $files, $visitedCss);
+        } else {
+            $files[realpath($resource) ?: $resource] = true;
+        }
+    }
+    foreach ($srcs[1] as $url) {
+        $resource = local_resource_path($url, $outputPath);
+        if ($resource !== null) $files[realpath($resource) ?: $resource] = true;
+    }
+    foreach ($srcsets[1] as $srcset) {
+        foreach (explode(',', $srcset) as $candidate) {
+            $url = preg_split('/\s+/', trim($candidate))[0] ?? '';
+            $resource = local_resource_path($url, $outputPath);
+            if ($resource !== null) $files[realpath($resource) ?: $resource] = true;
+        }
+    }
+
+    $total = $htmlSize;
+    foreach (array_keys($files) as $file) {
+        if (is_file($file)) $total += filesize($file);
+    }
+    return $total;
 }
 
 // Return an asset URL relative to the rendered page's directory.

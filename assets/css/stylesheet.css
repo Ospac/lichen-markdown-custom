@@ -132,7 +132,11 @@ footer .lichen-plug {
 footer p {
   margin: 0.2rem 0;
 }
-
+footer .page-size-wrapper {
+	position: fixed;
+	left: 15px;
+	bottom: 15px;
+}
 table {
   border: solid 1px gray;
   border-collapse: collapse;
