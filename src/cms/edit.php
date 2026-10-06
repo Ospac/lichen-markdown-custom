@@ -397,6 +397,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 			font-family: monospace;
 		}
 
+		.syntax-editor {
+			position: relative;
+			flex-grow: 1;
+			min-height: 0;
+			overflow: hidden;
+			background: white;
+		}
+
+		.syntax-editor pre,
+		.syntax-editor textarea {
+			position: absolute;
+			inset: 0;
+			width: 100%;
+			height: 100%;
+			margin: 0;
+			padding: 1rem;
+			border: 0;
+			font-family: monospace;
+			font-size: 1rem;
+			font-weight: normal;
+			font-style: normal;
+			line-height: 1.2;
+			letter-spacing: normal;
+			tab-size: 4;
+			white-space: pre-wrap;
+			word-wrap: break-word;
+			overflow: auto;
+		}
+
+		.syntax-editor pre code {
+			font: inherit;
+			line-height: inherit;
+			letter-spacing: inherit;
+			tab-size: inherit;
+		}
+		.syntax-editor code {
+			background: none;
+		}
+		.syntax-editor pre {
+			pointer-events: none;
+			color: #202124;
+		}
+
+		.syntax-editor textarea {
+			z-index: 1;
+			resize: none;
+			color: transparent;
+			background: transparent;
+			caret-color: #202124;
+		}
+
+
+		.syntax-heading { color: #7c3aed; font-weight: bold; }
+		.syntax-strong { color: #2563eb; font-weight: bold; }
+		.syntax-code { color: #047857; }
+		.syntax-link { color: #0369a1; }
+		.syntax-list { color: #b45309; }
+		.syntax-quote { color: #6b7280; font-style: italic; }
+		.syntax-html-tag { color: #dc2626; }
+
 		iframe {
 			flex-grow: 1;
 			border: none;
@@ -592,6 +652,80 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 		let scrollX = 0;
 		let scrollY = 0;
 
+		function escapeEditorHtml(value) {
+			return value
+				.replaceAll('&', '&amp;')
+				.replaceAll('<', '&lt;')
+				.replaceAll('>', '&gt;')
+				.replaceAll('"', '&quot;');
+		}
+
+		function highlightMarkdownLine(line) {
+			const escaped = escapeEditorHtml(line);
+			if (/^\s*#{1,6}\s/.test(line)) {
+				return `<span class="syntax-heading">${escaped}</span>`;
+			}
+			if (/^\s*>/.test(line)) {
+				return `<span class="syntax-quote">${escaped}</span>`;
+			}
+
+			const tokenPattern = /(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`|!?\[[^\]]+\]\([^\)]+\))/g;
+			let result = '';
+			let lastIndex = 0;
+			for (const match of line.matchAll(tokenPattern)) {
+				result += escapeEditorHtml(line.slice(lastIndex, match.index));
+				const token = escapeEditorHtml(match[0]);
+				const className = match[0].startsWith('`')
+					? 'syntax-code'
+					: match[0].startsWith('[') || match[0].startsWith('![')
+						? 'syntax-link'
+						: 'syntax-strong';
+				result += `<span class="${className}">${token}</span>`;
+				lastIndex = match.index + match[0].length;
+			}
+			result += escapeEditorHtml(line.slice(lastIndex));
+
+			if (/^\s*(?:[-*+]\s|\d+\.\s)/.test(line)) {
+				return `<span class="syntax-list">${result}</span>`;
+			}
+			return result;
+		}
+
+		function highlightMarkdown(source) {
+			return source.split('\n').map(highlightMarkdownLine).join('\n');
+		}
+
+		function highlightHtml(source) {
+			const tagPattern = /<!--[\s\S]*?-->|<\/?[A-Za-z][^>]*>/g;
+			let result = '';
+			let lastIndex = 0;
+			for (const match of source.matchAll(tagPattern)) {
+				result += escapeEditorHtml(source.slice(lastIndex, match.index));
+				result += `<span class="syntax-html-tag">${escapeEditorHtml(match[0])}</span>`;
+				lastIndex = match.index + match[0].length;
+			}
+			return result + escapeEditorHtml(source.slice(lastIndex));
+		}
+
+		function updateSyntaxHighlight() {
+			const input = document.getElementById('content');
+			const code = document.querySelector('#highlight code');
+			if (!input || !code) return;
+
+			const isHtml = REQ_PATH.toLowerCase().endsWith('.html');
+			code.innerHTML = isHtml
+				? highlightHtml(input.value)
+				: highlightMarkdown(input.value);
+		}
+
+		function syncEditorScroll() {
+			const input = document.getElementById('content');
+			const highlight = document.getElementById('highlight');
+			if (!input || !highlight) return;
+			highlight.scrollTop = input.scrollTop;
+			highlight.scrollLeft = input.scrollLeft;
+		}
+
 		function previewPagePath(path) {
 			path = path.replace(/^\/page(?=\/|$)/, '');
 			if (path === '' || path.endsWith('/')) {
@@ -699,9 +833,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 			}, 1000);
 			const input = document.getElementById('content');
 			input.focus();
+			updateSyntaxHighlight();
+			input.addEventListener('scroll', syncEditorScroll);
 			input.addEventListener('input', onContentInput);
 			input.addEventListener('input', function () {
 				contentModified = true;
+				updateSyntaxHighlight();
+				syncEditorScroll();
 			});
 
 			window.addEventListener('beforeunload', function (event) {
@@ -960,11 +1098,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 <body>
 	<div class="container">
 		<div class="panel" id="panel_editor">
-			<textarea id="content" autocomplete="off" spellcheck="false" style="flex-grow: 1;"><?php
-			if (file_exists(PROJECT_DIR . $_SERVER['PATH_INFO'])) {
-				echo file_get_contents(PROJECT_DIR . $_SERVER['PATH_INFO']);
-			}
-			?></textarea>
+			<div class="syntax-editor">
+				<pre id="highlight" aria-hidden="true"><code></code></pre>
+				<textarea id="content" autocomplete="off" spellcheck="false"><?php
+				if (file_exists(PROJECT_DIR . $_SERVER['PATH_INFO'])) {
+					echo file_get_contents(PROJECT_DIR . $_SERVER['PATH_INFO']);
+				}
+				?></textarea>
+			</div>
 			<div id="help" class="hidden">
 
 				<?php if (substr_count($_SERVER['PATH_INFO'], '.gmi') > 0): ?>
