@@ -1,7 +1,7 @@
-# [lichen-markdown](index.md)
+# [Lichen-Markdown](index.md)
 
 <menu>
-— [Code repository](https://codeberg.org/ukrudt.net/lichen-markdown) 
+— [Code repository](https://github.com/Ospac/lichen-markdown-custom) 
 — [Markdown cheatsheet](cheatsheet.md) 
 — [about](about.md) 
 —
