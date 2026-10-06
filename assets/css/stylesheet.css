@@ -16,15 +16,20 @@ body {
   display: flex;
   flex-direction: column;
 }
-
 main {
   flex: auto;
+}
+a, a:visited {
+	color: #000EEE;
+}
+a:hover, a:active {
+	color: #FF0000;
 }
 
 h1,
 h2,
 h3 {
-  color: gray;
+  color: #535353;
   margin-bottom: 1rem;
   margin-top: 1rem;
   font-weight: 300;
@@ -148,4 +153,8 @@ tbody td {
   color: #333;
   padding: 10px;
   text-shadow: 1px 1px 1px #fff;
+}
+pre {
+	background-color: #f3e9e9;
+	overflow-wrap: break-word;
 }
