@@ -78,10 +78,6 @@ ol li {
   margin: 0.4rem 0;
 }
 
-ol li::marker {
-  color: lightgray;
-}
-
 p {
   margin: 0.75rem 0;
 }
@@ -159,6 +155,6 @@ tbody td {
   text-shadow: 1px 1px 1px #fff;
 }
 pre {
-	background-color: #f3e9e9;
+	background-color: #e2dfdf80;
 	overflow-wrap: break-word;
 }
