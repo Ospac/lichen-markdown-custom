@@ -7,17 +7,15 @@ $path = null;
 $ext = null;
 $_content = null;
 
-// decodeurl
-    $_SERVER['PATH_INFO'] = urldecode($_SERVER['PATH_INFO']);
-// replace all spaces with underscores
-$_SERVER['PATH_INFO'] = str_replace(" ", "_", $_SERVER['PATH_INFO']);
+// Decode the URL once while preserving spaces in actual filenames.
+$_SERVER['PATH_INFO'] = urldecode($_SERVER['PATH_INFO']);
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $_src = fopen("php://input", "r");
     $path = content_relative_path($_SERVER['PATH_INFO']);
     $ext = pathinfo($path, PATHINFO_EXTENSION);
 } else if (isset($_SERVER['REDIRECT_URL'])) {
-    $path = $_SERVER['REDIRECT_URL'];
+    $path = urldecode($_SERVER['REDIRECT_URL']);
     $sourcePath = source_path($path);
     $_src = fopen($sourcePath, "r") or die("File not found: " . $path);
     $ext = pathinfo($sourcePath, PATHINFO_EXTENSION);

@@ -277,7 +277,15 @@ function render_l11n_layout($fileName, $targetPath)
         $file_path = PAGE_DIR . "/l11n" . "/" . $lang . "/" . $fileName;
     }
 
-    return render_file_if_exist_or_empty_string($file_path);
+    $rendered = render_file_if_exist_or_empty_string($file_path);
+    if ($rendered === "") return $rendered;
+
+    // Layout links are authored relative to the layout file, but are rendered
+    // inside the current page. Preserve that distinction when rewriting them.
+    $layoutPath = content_relative_path(
+        '/' . ltrim(substr($file_path, strlen(PAGE_DIR)), '/')
+    );
+    return rewrite_internal_links($rendered, $targetPath, $layoutPath);
 }
 
 // 마크다운 조각 파일을 HTML로 렌더링 (없으면 빈 문자열)
@@ -426,10 +434,10 @@ function rewrite_asset_paths($html, $pagePath) {
 }
 
 // Static builds expose rendered Markdown files as .html files, not .md routes.
-function rewrite_internal_links($html, $pagePath) {
+function rewrite_internal_links($html, $pagePath, $sourcePath = null) {
     return preg_replace_callback(
         '/(<a\b[^>]*\bhref\s*=\s*)(["\'])([^"\']*\.md(?:[?#][^"\']*)?)\2/i',
-        function ($matches) use ($pagePath) {
+        function ($matches) use ($pagePath, $sourcePath) {
             $target = $matches[3];
             if (preg_match('/^\s*(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i', $target)) {
                 return $matches[0];
@@ -437,13 +445,14 @@ function rewrite_internal_links($html, $pagePath) {
 
             preg_match('/^([^?#]*)(.*)$/', $target, $parts);
             $targetPath = preg_replace('/\.md$/i', '.html', $parts[1]);
-            $pagePath = preg_replace('/\.md$/i', '.html', $pagePath);
-            $pageDirectory = trim(dirname($pagePath), '/');
+            $outputPagePath = preg_replace('/\.md$/i', '.html', $pagePath);
+            $pageDirectory = trim(dirname($outputPagePath), '/');
+            $sourceDirectory = trim(dirname($sourcePath ?? $pagePath), '/');
             $targetSegments = explode('/', trim($targetPath, '/'));
 
             if ($parts[1][0] !== '/') {
                 $targetSegments = array_merge(
-                    $pageDirectory === '' ? [] : explode('/', $pageDirectory),
+                    $sourceDirectory === '' ? [] : explode('/', $sourceDirectory),
                     $targetSegments
                 );
             }
