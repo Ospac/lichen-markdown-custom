@@ -7,51 +7,33 @@ use Michelf\MarkdownExtra;
 
 
 /**
- *
- * Get the page title according to the following priorities:
- * 
- * 1. get explicit page title
- * 2. get explicit header title
- * 3. get implicit header title
- * 4. get implicit page title
- *
- *
- * @param   string  $header The html of the header
- * @param   string  $body The html of the body
- * @return  string  The title 
- *
+ * Parse the optional YAML-like frontmatter at the beginning of a Markdown file.
+ * The project only needs scalar page settings, so a small parser is sufficient.
  */
-function get_title($header, $body)
+function parse_frontmatter($source)
 {
-    //Stop deprecation errors with PHP 8 when editing the header
-    if ($header === null)
-        $header = "";
-    if ($body === null)
-        $body = "";
+    $metadata = [];
+    $pattern = '/\A(?:\xEF\xBB\xBF)?---\s*\R(.*?)\R---\s*(?:\R|\z)/s';
 
-    // Get explicit page title
-    preg_match_all('|<!-- TITLE:(.*) -->|', $body, $matches);
-    $title = trim(implode($matches[1]));
-
-    // Else get explicit header title
-    if ($title == '') {
-        preg_match_all('|<!-- TITLE:(.*) -->|', $header, $matches);
-        $title = trim(implode($matches[1]));
+    if (!preg_match($pattern, $source, $matches)) {
+        return [$metadata, $source];
     }
 
-    // Else get implicit header title
-    if ($title == '') {
-        preg_match_all('|<h[^>]+>(.*)</h[^>]+>|iU', $header, $headings);
-        $title = trim(implode($headings[1]));
+    foreach (preg_split('/\R/', $matches[1]) as $line) {
+        if (preg_match('/^\s*([A-Za-z0-9_-]+)\s*:\s*(.*?)\s*$/', $line, $fields)) {
+            $value = trim($fields[2]);
+            if (strlen($value) >= 2) {
+                $first = $value[0];
+                $last = $value[strlen($value) - 1];
+                if (($first === '"' && $last === '"') || ($first === "'" && $last === "'")) {
+                    $value = substr($value, 1, -1);
+                }
+            }
+            $metadata[$fields[1]] = $value;
+        }
     }
 
-    // Else get implicit body title
-    if ($title == '') {
-        preg_match_all('|<h[^>]+>(.*)</h[^>]+>|iU', $body, $headings);
-        $title = trim(implode($headings[1]));
-    }
-
-    return $title;
+    return [$metadata, substr($source, strlen($matches[0]))];
 }
 
 
@@ -68,9 +50,13 @@ function get_title($header, $body)
 function render_func($path, $ext, $_src = "")
 {
 
-    // Get rendered html and parse metadata title
+    $metadata = [];
+
+    // Get rendered html and parse page metadata.
     if ($ext == "md") {
-        $body = markdown_to_html($_src);
+        $source = stream_get_contents($_src);
+        [$metadata, $source] = parse_frontmatter($source);
+        $body = markdown_to_html($source);
     } else if ($ext == "html" or $ext == "htm") {
         //Source is HTML anyway
         $body = "";
@@ -107,10 +93,18 @@ function render_func($path, $ext, $_src = "")
         $footer = render_l11n_layout("footer.md", $path);
     }
 
-    $title = get_title($header, $body);
+    $title = $metadata['title'] ?? null;
+    $requestedLayout = $metadata['layout'] ?? null;
+    $layout = 'default';
+    if (is_string($requestedLayout) && preg_match('/^[A-Za-z0-9_-]+$/', $requestedLayout)) {
+        $requestedLayoutPath = THEME_DIR . '/' . $requestedLayout . '.php';
+        if (is_file($requestedLayoutPath)) {
+            $layout = $requestedLayout;
+        }
+    }
 
     ob_start();
-    include THEME_DIR . "/layout.php";
+    include THEME_DIR . '/' . $layout . '.php';
     $output = ob_get_clean();
     $output = rewrite_asset_paths($output, $path);
     return rewrite_internal_links($output, $path);
@@ -209,10 +203,13 @@ function markdown_to_html($file)
 {
     global $SHORTCODES;
 
-    $source = "";
-
-    while (!feof($file)) {
-        $source = $source . fgets($file);
+    if (is_resource($file)) {
+        $source = "";
+        while (!feof($file)) {
+            $source .= fgets($file);
+        }
+    } else {
+        $source = (string) $file;
     }
 
     $html = MarkdownExtra::defaultTransform($source);
