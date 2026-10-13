@@ -56,6 +56,7 @@ $_SERVER['PATH_INFO'] = str_replace(" ", "_", $_SERVER['PATH_INFO']);
 } ?>
 <?php function render_file($filename, $base)
 { ?>
+	<?php $publicBase = preg_replace('#^/page/assets(?=/|$)#', '/assets', $base); ?>
 	<li class="file">
 		<?php $extension = strtolower(substr(strrchr($filename, '.'), 1)); ?>
 		<?php if (in_array($extension, EDITABLE_EXTENSIONS)): ?>
@@ -63,7 +64,7 @@ $_SERVER['PATH_INFO'] = str_replace(" ", "_", $_SERVER['PATH_INFO']);
 				<span class="name"><?php echo $filename ?></span>
 			</a>
 		<?php else: ?>
-			<a href="<?php echo $base . $filename ?>" target="_blank" class="link--unknown">
+			<a href="<?php echo $publicBase . $filename ?>" target="_blank" class="link--unknown">
 				<span class="name"><?php echo $filename ?></span>
 			</a>
 		<?php endif; ?>
@@ -240,6 +241,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 		exit(0);
 	}
 	$extension = strtolower(pathinfo($_SERVER['PATH_INFO'], PATHINFO_EXTENSION));
+	$destinationDirectory = dirname(PROJECT_DIR . $_SERVER['PATH_INFO']);
+	if (!is_dir($destinationDirectory) && !mkdir($destinationDirectory, 0755, true)) {
+		http_response_code(500);
+		header('Content-Type: text/plain');
+		echo 'Could not create the upload directory.';
+		exit(0);
+	}
 	if (getenv('IMG_RESIZE_ENABLE') && in_array($extension, RESIZABLE_IMAGE_EXTENSIONS)) {
 		$max_width = 800;
 		if (getenv('IMG__RESIZE_MAX_WIDTH')) {
@@ -718,6 +726,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 				: highlightMarkdown(input.value);
 		}
 
+		function currentDocumentImagePath() {
+			const path = REQ_PATH.replace(/^\/+|\/+$/g, '');
+			const parts = path.split('/');
+			const fileName = parts[parts.length - 1] || 'index.md';
+			const slug = fileName.replace(/\.[^.]+$/, '');
+			return `/page/assets/image/${slug}/`;
+		}
+
 		function syncEditorScroll() {
 			const input = document.getElementById('content');
 			const highlight = document.getElementById('highlight');
@@ -1042,7 +1058,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 			}
 			const isImage = file.type.startsWith('image/') ||
 				/\.(avif|bmp|gif|jpe?g|png|svg|webp)$/i.test(fileName);
-			const uploadPath = isImage ? '/assets/image/' : uploadContextPath;
+			const uploadPath = isImage ? currentDocumentImagePath() : uploadContextPath;
+			const publicUploadPath = uploadPath.replace(/^\/page(?=\/|$)/, '');
 			try {
 				const res = await fetch('/cms/edit.php' + uploadPath + fileName, {
 					method: 'POST',
@@ -1056,9 +1073,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 				}
 				const newSrc = await res.text();
 				const newNode = new DOMParser().parseFromString(newSrc, 'text/html').body.firstElementChild;
-				document.querySelector(`details[data-path="${uploadPath}"] > ol`).appendChild(newNode).scrollIntoView();
+				const uploadDirectory = document.querySelector(`details[data-path="${uploadPath}"] > ol`);
+				if (uploadDirectory) uploadDirectory.appendChild(newNode).scrollIntoView();
 				if (insertUpload) {
-					const filePath = uploadPath + fileName;
+					const filePath = publicUploadPath + fileName;
 					document.getElementById('panel_files').classList.add('hidden');
 					document.getElementById('panel_editor').classList.remove('hidden');
 					const el = document.getElementById('content');
@@ -1136,7 +1154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 			<div class="controls">
 				<button id="toggle-files"
 					onclick="document.getElementById('panel_files').classList.toggle('hidden'); document.getElementById('panel_editor').classList.toggle('hidden');">Files</button>
-				<button id="toggle-cheatsheet" data-path="/assets/"
+				<button id="toggle-cheatsheet" data-path="/page/assets/"
 					onclick="uploadContextPath = this.dataset.path; insertUpload = true; document.getElementById('upload').click();">Upload</button>
 				<button id="toggle-cheatsheet"
 					onclick="document.getElementById('help').classList.toggle('hidden');">Help</button>

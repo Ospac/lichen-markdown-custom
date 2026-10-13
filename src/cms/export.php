@@ -18,7 +18,7 @@ try {
     require_once "utils.php";
 
     $sourceDir = SRC_DIR;
-    $zipFile = SRC_DIR . '/assets/export.zip';
+    $zipFile = SRC_DIR . '/page/assets/export.zip';
     if (php_sapi_name() == 'cli') {
         echo "zip: " . $zipFile . "\n";
     }

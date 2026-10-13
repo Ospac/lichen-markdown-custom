@@ -144,7 +144,9 @@ function save_dist($relative_src_path)
             $pageSize = $nextPageSize;
         }
     } else {
-        $output_dest_path = DIST_DIR . $relative_src_path;
+        // Files under page/assets are public assets, not part of the page URL.
+        // Use the content-relative path so /page/assets/foo becomes /assets/foo.
+        $output_dest_path = DIST_DIR . $publicPath;
     }
     $directoryPath = dirname($output_dest_path);
     // check if the directory exists that will contain the rendered html file

@@ -3,6 +3,7 @@
 define('PROJECT_DIR', dirname(dirname(__DIR__)));
 define('SRC_DIR', PROJECT_DIR);
 define('PAGE_DIR', PROJECT_DIR . '/page');
+define('ASSET_DIR', PAGE_DIR . '/assets');
 define('DIST_DIR', PROJECT_DIR . '/dist');
 define('CMS_DIR', PROJECT_DIR . '/src/cms');
 define('THEME_DIR', PROJECT_DIR . '/src/theme');
@@ -16,6 +17,9 @@ function content_relative_path($path)
 function source_path($path)
 {
     $path = '/' . ltrim($path, '/');
+    if (preg_match('#^/assets(?:/|$)#', $path)) {
+        return PAGE_DIR . $path;
+    }
     if (preg_match('#^/page(?:/|$)#', $path)) {
         return PROJECT_DIR . $path;
     }

@@ -31,7 +31,36 @@ if (preg_match('#^/cms/([^/]+\.php)(/.*)?$#', $requestUri, $matches)) {
 }
 
 // Serve files outside the page source directly (assets, favicon, etc.).
-$staticPath = PROJECT_DIR . $requestUri;
+$staticPath = str_starts_with($requestUri, '/assets/')
+    ? PAGE_DIR . $requestUri
+    : PROJECT_DIR . $requestUri;
+if (str_starts_with($requestUri, '/assets/') && is_file($staticPath)) {
+    $mimeTypes = [
+        'css' => 'text/css; charset=UTF-8',
+        'js' => 'application/javascript; charset=UTF-8',
+        'mjs' => 'application/javascript; charset=UTF-8',
+        'json' => 'application/json; charset=UTF-8',
+        'svg' => 'image/svg+xml',
+        'jpg' => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        'gif' => 'image/gif',
+        'webp' => 'image/webp',
+        'avif' => 'image/avif',
+        'ico' => 'image/x-icon',
+        'woff' => 'font/woff',
+        'woff2' => 'font/woff2',
+        'ttf' => 'font/ttf',
+        'otf' => 'font/otf',
+    ];
+    $extension = strtolower(pathinfo($staticPath, PATHINFO_EXTENSION));
+    $mimeType = $mimeTypes[$extension] ?? mime_content_type($staticPath);
+    if ($mimeType !== false) {
+        header('Content-Type: ' . $mimeType);
+    }
+    readfile($staticPath);
+    return true;
+}
 if (is_file($staticPath) && !str_ends_with(strtolower($staticPath), '.md')) {
     return false;
 }
