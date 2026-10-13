@@ -98,14 +98,14 @@ function render_func($path, $ext, $_src = "")
     $requestedLayout = $metadata['layout'] ?? null;
     $layout = 'default';
     if (is_string($requestedLayout) && preg_match('/^[A-Za-z0-9_-]+$/', $requestedLayout)) {
-        $requestedLayoutPath = THEME_DIR . '/' . $requestedLayout . '.php';
+        $requestedLayoutPath = LAYOUT_DIR . '/' . $requestedLayout . '.php';
         if (is_file($requestedLayoutPath)) {
             $layout = $requestedLayout;
         }
     }
 
     ob_start();
-    include THEME_DIR . '/' . $layout . '.php';
+    include LAYOUT_DIR . '/' . $layout . '.php';
     $output = ob_get_clean();
     $output = rewrite_asset_paths($output, $path);
     return rewrite_internal_links($output, $path);
@@ -173,7 +173,7 @@ function save_all_to_dist($dir)
             new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS),
             function ($current, $key, $iterator) {
                 // Skip application and generated directories.
-                $skipDirs = ['src', 'cms', 'theme', 'dist', 'update', '.git', '.obsidian'];
+                $skipDirs = ['src', 'cms', 'layout', 'dist', 'update', '.git', '.obsidian'];
                 if ($current->getPath() === PROJECT_DIR && !in_array($current->getBasename(), ['page', 'assets'])) {
                     return false;
                 }

@@ -33,7 +33,7 @@ function get_filetree($basePath)
 	$filter = new RecursiveCallbackFilterIterator($directory, function ($current, $key, $iterator) {
 		if ($current->getFilename()[0] === '.') { // skip hidden files and directories.
 			return FALSE;
-		} elseif (in_array($current->getBasename(), ['cms', 'theme', 'src', 'dist', 'update', '.git'])) {
+		} elseif (in_array($current->getBasename(), ['cms', 'layout', 'src', 'dist', 'update', '.git'])) {
 			return FALSE;
 		}
 		return TRUE;

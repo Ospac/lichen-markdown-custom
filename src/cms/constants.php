@@ -5,7 +5,7 @@ define('PAGE_DIR', PROJECT_DIR . '/page');
 define('ASSET_DIR', PAGE_DIR . '/assets');
 define('DIST_DIR', PROJECT_DIR . '/dist');
 define('CMS_DIR', PROJECT_DIR . '/src/cms');
-define('THEME_DIR', PROJECT_DIR . '/src/theme');
+define('LAYOUT_DIR', PROJECT_DIR . '/src/layout');
 
 function content_relative_path($path)
 {
