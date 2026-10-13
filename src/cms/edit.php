@@ -11,22 +11,23 @@ require_once "utils.php";
 
 define("EDITABLE_EXTENSIONS", ["gmi", "md", "css", "html"]);
 
-// patch up PATH_INFO in case it is unset
-if (!array_key_exists('PATH_INFO', $_SERVER) || $_SERVER['PATH_INFO'] == "") {
-	$_SERVER['PATH_INFO'] = "/";
-}
-if (substr($_SERVER['PATH_INFO'], -1, 1) === "/") {
-	$_SERVER['PATH_INFO'] .= "index.md";
+function normalize_edit_path()
+{
+	$path = $_SERVER['PATH_INFO'] ?? '/';
+	$path = $path === '' ? '/' : $path;
+	if (str_ends_with($path, '/')) {
+		$path .= 'index.md';
+	}
+
+	return urldecode($path);
 }
 
-// decodeurl
-$_SERVER['PATH_INFO'] = urldecode($_SERVER['PATH_INFO']);
-// replace all spaces with underscores
-$_SERVER['PATH_INFO'] = str_replace(" ", "_", $_SERVER['PATH_INFO']);
-
+$_SERVER['PATH_INFO'] = normalize_edit_path();
 
 ?>
-<?php function get_filetree($basePath)
+<?php
+// File tree data and HTML rendering.
+function get_filetree($basePath)
 {
 	$directory = new RecursiveDirectoryIterator($basePath);
 	$filter = new RecursiveCallbackFilterIterator($directory, function ($current, $key, $iterator) {
@@ -59,7 +60,7 @@ $_SERVER['PATH_INFO'] = str_replace(" ", "_", $_SERVER['PATH_INFO']);
 	<?php $publicBase = preg_replace('#^/page/assets(?=/|$)#', '/assets', $base); ?>
 	<li class="file">
 		<?php $extension = strtolower(substr(strrchr($filename, '.'), 1)); ?>
-		<?php if (in_array($extension, EDITABLE_EXTENSIONS)): ?>
+		<?php if (in_array($extension, EDITABLE_EXTENSIONS, true)): ?>
 			<a href="<?php echo "/cms/edit.php" . $base . $filename ?>" class="link--editable">
 				<span class="name"><?php echo $filename ?></span>
 			</a>
@@ -156,11 +157,13 @@ $_SERVER['PATH_INFO'] = str_replace(" ", "_", $_SERVER['PATH_INFO']);
 <?php } ?>
 <?php
 
-if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
+// HTTP actions.
+
+function handle_put_request()
+{
 	$src_path = $_SERVER['PATH_INFO'];
-	// 
 	$action = $_GET['action'] ?? null;
-	if ($action == 'rename') {
+	if ($action === 'rename') {
 		$newName = $_GET['newName'] ?? null;
 		if (preg_match("/[\#\:\/\\\'\"\/\?]+/", $newName)) {
 			http_response_code(400);
@@ -228,7 +231,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 		http_response_code(204);
 		exit(0);
 	}
-} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
+}
+
+function handle_post_request()
+{
 
 	define("RESIZABLE_IMAGE_EXTENSIONS", ["png", "avif", "bmp", "jpg", "jpeg", "webp"]);
 
@@ -248,7 +254,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 		echo 'Could not create the upload directory.';
 		exit(0);
 	}
-	if (getenv('IMG_RESIZE_ENABLE') && in_array($extension, RESIZABLE_IMAGE_EXTENSIONS)) {
+	if (getenv('IMG_RESIZE_ENABLE') && in_array($extension, RESIZABLE_IMAGE_EXTENSIONS, true)) {
 		$max_width = 800;
 		$maxWidth = getenv('IMG_RESIZE_MAX_WIDTH') ?: getenv('IMG__RESIZE_MAX_WIDTH');
 		if ($maxWidth !== false && $maxWidth !== '') {
@@ -322,7 +328,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 	header('Content-Type: text/html');
 	render_file(basename($public_path), $base);
 	exit(0);
-} elseif ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+}
+
+function handle_delete_request()
+{
 	if ($_SERVER['PATH_INFO'] === "" || $_SERVER['PATH_INFO'] === "." || $_SERVER['PATH_INFO'] === "/") {
 		http_response_code(400);
 		exit(1);
@@ -344,7 +353,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 	}
 	http_response_code(204);
 	exit(0);
-} elseif ($_SERVER['REQUEST_METHOD'] === 'PATCH') {
+}
+
+function handle_patch_request()
+{
 	mkdir(PROJECT_DIR . $_SERVER['PATH_INFO']);
 	http_response_code(200);
 	header('Content-Type: text/html');
@@ -352,6 +364,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 	$dir = rtrim($dir, "/") . "/"; # render_directory expects dir to end with a trailing slash  
 	render_directory(basename($_SERVER['PATH_INFO']), $dir, count(explode("/", $dir)), array());
 	exit(0);
+}
+
+$requestMethod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+if ($requestMethod === 'PUT') {
+	handle_put_request();
+} elseif ($requestMethod === 'POST') {
+	handle_post_request();
+} elseif ($requestMethod === 'DELETE') {
+	handle_delete_request();
+} elseif ($requestMethod === 'PATCH') {
+	handle_patch_request();
 }
 ?>
 <!DOCTYPE html>

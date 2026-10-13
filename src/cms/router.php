@@ -1,40 +1,57 @@
 <?php
+
 require_once __DIR__ . "/utils.php";
 
-$requestUri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
-$requestUri = '/' . ltrim(urldecode($requestUri), '/');
-
-if (str_contains($requestUri, '..')) {
-    http_response_code(400);
-    exit('Invalid path');
+function normalize_request_path()
+{
+    $requestUri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+    return '/' . ltrim(urldecode($requestUri), '/');
 }
 
-// Source and application files are not public URLs.
-if (preg_match('#^/(src|page|dist)(/|$)#', $requestUri)) {
-    http_response_code(404);
-    exit('404 Not Found');
+function is_protected_path($requestUri)
+{
+    return preg_match('#^/(src|page|dist)(/|$)#', $requestUri) === 1;
 }
 
-// CMS scripts remain under src/cms, while their public URLs stay /cms/....
-if (preg_match('#^/cms/([^/]+\.php)(/.*)?$#', $requestUri, $matches)) {
+function handle_cms_request($requestUri)
+{
+    if (!preg_match('#^/cms/([^/]+\.php)(/.*)?$#', $requestUri, $matches)) {
+        return false;
+    }
+
     $script = CMS_DIR . '/' . $matches[1];
     if (!is_file($script)) {
         http_response_code(404);
         exit('404 Not Found');
     }
+
     $_SERVER['PATH_INFO'] = $matches[2] ?? '';
     if ($matches[1] === 'render.php') {
         unset($_SERVER['REDIRECT_URL']);
     }
+
     include $script;
     return true;
 }
 
-// Serve files outside the page source directly (assets, favicon, etc.).
-$staticPath = str_starts_with($requestUri, '/assets/')
-    ? PAGE_DIR . $requestUri
-    : PROJECT_DIR . $requestUri;
-if (str_starts_with($requestUri, '/assets/') && is_file($staticPath)) {
+function static_path($requestUri)
+{
+    return str_starts_with($requestUri, '/assets/')
+        ? PAGE_DIR . $requestUri
+        : PROJECT_DIR . $requestUri;
+}
+
+function serve_static_asset($requestUri)
+{
+    if (!str_starts_with($requestUri, '/assets/')) {
+        return false;
+    }
+
+    $path = static_path($requestUri);
+    if (!is_file($path)) {
+        return false;
+    }
+
     $mimeTypes = [
         'css' => 'text/css; charset=UTF-8',
         'js' => 'application/javascript; charset=UTF-8',
@@ -53,56 +70,99 @@ if (str_starts_with($requestUri, '/assets/') && is_file($staticPath)) {
         'ttf' => 'font/ttf',
         'otf' => 'font/otf',
     ];
-    $extension = strtolower(pathinfo($staticPath, PATHINFO_EXTENSION));
-    $mimeType = $mimeTypes[$extension] ?? mime_content_type($staticPath);
+    $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+    $mimeType = $mimeTypes[$extension] ?? mime_content_type($path);
+
     if ($mimeType !== false) {
         header('Content-Type: ' . $mimeType);
     }
-    readfile($staticPath);
+    readfile($path);
     return true;
 }
-if (is_file($staticPath) && !str_ends_with(strtolower($staticPath), '.md')) {
+
+function render_source_page($requestUri)
+{
+    $sourcePath = static_path($requestUri);
+    if (is_file($sourcePath) && !str_ends_with(strtolower($sourcePath), '.md')) {
+        return false;
+    }
+
+    $markdownPath = PAGE_DIR . $requestUri . '.md';
+    $indexMarkdownPath = PAGE_DIR . rtrim($requestUri, '/') . '/index.md';
+
+    if ($requestUri === '/' || str_ends_with($requestUri, '/')) {
+        if (!is_file($indexMarkdownPath)) {
+            return false;
+        }
+
+        $_SERVER['PATH_INFO'] = content_relative_path(rtrim($requestUri, '/') . '/index.md');
+        unset($_SERVER['REDIRECT_URL']);
+        include CMS_DIR . '/render.php';
+        return true;
+    }
+
+    if (is_file($markdownPath)) {
+        $_SERVER['PATH_INFO'] = content_relative_path($requestUri . '.md');
+        unset($_SERVER['REDIRECT_URL']);
+        include CMS_DIR . '/render.php';
+        return true;
+    }
+
+    if (str_ends_with($requestUri, '.html')) {
+        $markdownPath = PAGE_DIR . substr($requestUri, 0, -5) . '.md';
+        if (is_file($markdownPath)) {
+            $_SERVER['PATH_INFO'] = content_relative_path(substr($requestUri, 0, -5) . '.md');
+            unset($_SERVER['REDIRECT_URL']);
+            include CMS_DIR . '/render.php';
+            return true;
+        }
+    }
+
     return false;
 }
 
-$publicPath = $requestUri;
-$markdownPath = PAGE_DIR . $publicPath . '.md';
-$indexMarkdownPath = PAGE_DIR . rtrim($publicPath, '/') . '/index.md';
-
-if ($requestUri === '/' || str_ends_with($requestUri, '/')) {
-    if (is_file($indexMarkdownPath)) {
-        $_SERVER['PATH_INFO'] = content_relative_path(rtrim($publicPath, '/') . '/index.md');
-        unset($_SERVER['REDIRECT_URL']);
-        include CMS_DIR . '/render.php';
-        return true;
+function serve_dist_fallback($requestUri)
+{
+    $distPath = DIST_DIR . $requestUri;
+    if ($requestUri === '/' || str_ends_with($requestUri, '/')) {
+        $distPath = DIST_DIR . rtrim($requestUri, '/') . '/index.html';
+    } elseif (!pathinfo($requestUri, PATHINFO_EXTENSION)) {
+        $distPath .= '.html';
     }
-} elseif (is_file($markdownPath)) {
-    $_SERVER['PATH_INFO'] = content_relative_path($publicPath . '.md');
-    unset($_SERVER['REDIRECT_URL']);
-    include CMS_DIR . '/render.php';
+
+    if (!is_file($distPath)) {
+        return false;
+    }
+
+    readfile($distPath);
     return true;
 }
 
-// Explicit .html URLs render the corresponding Markdown source in development.
-if (str_ends_with($requestUri, '.html')) {
-    $markdownPath = PAGE_DIR . substr($requestUri, 0, -5) . '.md';
-    if (is_file($markdownPath)) {
-        $_SERVER['PATH_INFO'] = content_relative_path(substr($requestUri, 0, -5) . '.md');
-        unset($_SERVER['REDIRECT_URL']);
-        include CMS_DIR . '/render.php';
-        return true;
-    }
+$requestUri = normalize_request_path();
+
+if (str_contains($requestUri, '..')) {
+    http_response_code(400);
+    exit('Invalid path');
 }
 
-// Fall back to the static build when no source page is available.
-$distPath = DIST_DIR . $requestUri;
-if ($requestUri === '/' || str_ends_with($requestUri, '/')) {
-    $distPath = DIST_DIR . rtrim($requestUri, '/') . '/index.html';
-} elseif (!pathinfo($requestUri, PATHINFO_EXTENSION)) {
-    $distPath = DIST_DIR . $requestUri . '.html';
+if (is_protected_path($requestUri)) {
+    http_response_code(404);
+    exit('404 Not Found');
 }
-if (is_file($distPath)) {
-    readfile($distPath);
+
+if (handle_cms_request($requestUri)) {
+    return true;
+}
+
+if (serve_static_asset($requestUri)) {
+    return true;
+}
+
+if (render_source_page($requestUri)) {
+    return true;
+}
+
+if (serve_dist_fallback($requestUri)) {
     return true;
 }
 
