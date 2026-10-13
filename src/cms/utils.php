@@ -1,5 +1,4 @@
 <?php
-require_once "shortcodes.php";
 require_once "constants.php";
 require_once "vendor/php-markdown-lib-9.1/Michelf/MarkdownExtra.inc.php";
 
@@ -196,13 +195,9 @@ function save_all_to_dist($dir)
 }
 
 
-/* Takes in a markdown file and renders it to HTML using MarkdownExtra.
- *  Additionally: for each registered shortcode, it parses the file for shortcodes and renders them appropriately.
- */
+/* Takes in a markdown file and renders it to HTML using MarkdownExtra. */
 function markdown_to_html($file)
 {
-    global $SHORTCODES;
-
     if (is_resource($file)) {
         $source = "";
         while (!feof($file)) {
@@ -213,13 +208,6 @@ function markdown_to_html($file)
     }
 
     $html = MarkdownExtra::defaultTransform($source);
-
-    // For each registered shortcode, call the shortcode function on the HTML
-    foreach ($SHORTCODES as $shortcode) {
-        if (function_exists($shortcode)) {
-            $html = $shortcode($html);
-        }
-    }
 
     return $html;
 }
