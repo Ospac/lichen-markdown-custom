@@ -4,7 +4,9 @@ require_once "vendor/php-markdown-lib-9.1/Michelf/MarkdownExtra.inc.php";
 
 use Michelf\MarkdownExtra;
 
-
+// -----------------------------------------------------------------------------
+// Markdown and page rendering
+// -----------------------------------------------------------------------------
 /**
  * Parse the optional YAML-like frontmatter at the beginning of a Markdown file.
  * The project only needs scalar page settings, so a small parser is sufficient.
@@ -52,12 +54,12 @@ function render_func($path, $ext, $_src = "")
     $metadata = [];
 
     // Get rendered html and parse page metadata.
-    if ($ext == "md") {
+    if ($ext === 'md') {
         $source = stream_get_contents($_src);
         [$metadata, $source] = parse_frontmatter($source);
         $body = markdown_to_html($source);
-    } else if ($ext == "html" or $ext == "htm") {
-        //Source is HTML anyway
+    } elseif ($ext === 'html' || $ext === 'htm') {
+        // Source is already HTML.
         $body = "";
         while (!feof($_src)) {
             $body .= fgets($_src);
@@ -70,21 +72,21 @@ function render_func($path, $ext, $_src = "")
     $footer = null;
     $headerTitle = null;
 
-    $editingHeader = strpos($path, 'header.md');
-    $editingFooter = strpos($path, 'footer.md');
-    $editingHtml = $ext == 'html' || $ext == 'htm';
+    $editingHeader = strpos($path, 'header.md') !== false;
+    $editingFooter = strpos($path, 'footer.md') !== false;
+    $editingHtml = $ext === 'html' || $ext === 'htm';
 
     // if rendering header or footer, they should be rendered in their correct layout-position,
     if ($editingHeader) {
         $header = $body;
         $body = "";
         $footer = "";
-    } else if ($editingFooter) {
+    } elseif ($editingFooter) {
         $footer = $body;
         $header = "";
         $body = "";
         // if html is being editied, header or footer should not be displayed
-    } else if ($editingHtml) {
+    } elseif ($editingHtml) {
         $header = "";
         $footer = "";
     } else {
@@ -109,16 +111,19 @@ function render_func($path, $ext, $_src = "")
     return rewrite_internal_links($output, $path);
 }
 
+// -----------------------------------------------------------------------------
+// Build output
+// -----------------------------------------------------------------------------
+
 /*
- *   If the inputted file is a .md file, then it renders it and then saves the render to dist
- *   otherwise it just copies the input file to dist into the correct location
+ * Render Markdown files and copy other files to the corresponding dist path.
  */
 function save_dist($relative_src_path)
 {
     $ext = pathinfo($relative_src_path, PATHINFO_EXTENSION);
     $sourcePath = source_path($relative_src_path);
     $publicPath = content_relative_path($relative_src_path);
-    if ($ext == "md") {
+    if ($ext === 'md') {
         $output_dest_path = DIST_DIR . preg_replace('"\.md$"', '.html', $publicPath);
 
         // Re-render until the displayed value includes the final HTML size.
@@ -133,7 +138,9 @@ function save_dist($relative_src_path)
             }
 
             $nextPageSize = format_file_size(calculate_page_size($output, $output_dest_path));
-            if ($nextPageSize === $pageSize) break;
+            if ($nextPageSize === $pageSize) {
+                break;
+            }
             $pageSize = $nextPageSize;
         }
     } else {
@@ -147,7 +154,7 @@ function save_dist($relative_src_path)
         mkdir($directoryPath, 0755, true);
     }
     // if its a markdown source file, then copy the actual html over there
-    if ($ext == "md") {
+    if ($ext === 'md') {
         file_put_contents($output_dest_path, $output);
     }
     // otherwise just create a symlink back to the source file (in order to save space)
@@ -194,6 +201,9 @@ function save_all_to_dist($dir)
     }
 }
 
+// -----------------------------------------------------------------------------
+// Shared file and Markdown helpers
+// -----------------------------------------------------------------------------
 
 /* Takes in a markdown file and renders it to HTML using MarkdownExtra. */
 function markdown_to_html($file)
@@ -234,9 +244,7 @@ function delTree($dir)
     return rmdir($dir);
 }
 
-/*
- *   return a rendering of a markdown file if it exist, otherwise return null
- */
+// Return rendered Markdown when the file exists, or an empty string otherwise.
 function render_file_if_exist_or_empty_string($path)
 {
     if (file_exists($path)) {
@@ -244,26 +252,25 @@ function render_file_if_exist_or_empty_string($path)
         $rendered = markdown_to_html($src);
         fclose($src);
         return $rendered;
-    } else {
-        return "";
     }
+
+    return "";
 }
 
-/*
- *  Render $fileName from /l11n/<LANG>/, if $targetPath is in /l11n/<LANG>/ dir. Useful for getting l11n header and footer when getting localized pages.
- *  This l11n feature works from a configuration where localized versions of the site is in /l11n/<LANG>/.
- */
+// Render a localized header or footer when the target page is under /l11n/<LANG>/.
 function render_l11n_layout($fileName, $targetPath)
 {
     $pathArray = explode("/", $targetPath);
     $file_path = PAGE_DIR . "/" . $fileName;
-    if (($pathArray[1] ?? '') == "l11n") {
+    if (($pathArray[1] ?? '') === 'l11n') {
         $lang = $pathArray[2];
         $file_path = PAGE_DIR . "/l11n" . "/" . $lang . "/" . $fileName;
     }
 
     $rendered = render_file_if_exist_or_empty_string($file_path);
-    if ($rendered === "") return $rendered;
+    if ($rendered === "") {
+        return $rendered;
+    }
 
     // Layout links are authored relative to the layout file, but are rendered
     // inside the current page. Preserve that distinction when rewriting them.
@@ -273,18 +280,26 @@ function render_l11n_layout($fileName, $targetPath)
     return rewrite_internal_links($rendered, $targetPath, $layoutPath);
 }
 
-// 마크다운 조각 파일을 HTML로 렌더링 (없으면 빈 문자열)
-function render_component($name) {
+// Render a Markdown component file, or return an empty string when absent.
+function render_component($name)
+{
     $path = PAGE_DIR . "/" . $name . ".md";
-    if (!file_exists($path)) return "";
+    if (!file_exists($path)) {
+        return "";
+    }
+
     $src = fopen($path, "r");
     $html = markdown_to_html($src);
     fclose($src);
     return $html;
 }
 
-// page size 계산 함수들
-function format_file_size($bytes) {
+// -----------------------------------------------------------------------------
+// Page size calculation
+// -----------------------------------------------------------------------------
+
+function format_file_size($bytes)
+{
     $units = ['B', 'KB', 'MB', 'GB'];
     $size = (float) $bytes;
     $unit = 0;
@@ -398,6 +413,10 @@ function calculate_page_size($html, $outputPath) {
     }
     return $total;
 }
+
+// -----------------------------------------------------------------------------
+// URL rewriting
+// -----------------------------------------------------------------------------
 
 // Return an asset URL relative to the rendered page's directory.
 function asset_url($pagePath, $assetPath) {
