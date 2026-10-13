@@ -172,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 			$directoryUrl .= '/';
 		}
 		$newUrl = $directoryUrl . $newName;
-		$oldPath = SRC_DIR . $src_path;
+		$oldPath = PROJECT_DIR . $src_path;
 		$directoryPath = dirname($oldPath);
 		$newPath = $directoryPath . "/" . $newName;
 		if (file_exists($oldPath)) {
@@ -219,7 +219,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 		fclose($_dest);
 		// if it was a modification of header or footer then we need to rebuild the whole site to dist
 		if ($src_path == "/page/header.md" || $src_path == "/page/footer.md") {
-			save_all_to_dist(SRC_DIR);
+			save_all_to_dist(PROJECT_DIR);
 		}
 		// otherwise just save the changed file to dist
 		else {
@@ -250,8 +250,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 	}
 	if (getenv('IMG_RESIZE_ENABLE') && in_array($extension, RESIZABLE_IMAGE_EXTENSIONS)) {
 		$max_width = 800;
-		if (getenv('IMG__RESIZE_MAX_WIDTH')) {
-			$max_width = intval(getenv('IMG_RESIZE_MAX_WIDTH'));
+		$maxWidth = getenv('IMG_RESIZE_MAX_WIDTH') ?: getenv('IMG__RESIZE_MAX_WIDTH');
+		if ($maxWidth !== false && $maxWidth !== '') {
+			$max_width = intval($maxWidth);
 		}
 		$dest_format = getenv('IMG_RESIZE_FORMAT') ?: "source";
 		if ($dest_format == "source") {
@@ -327,11 +328,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
 		exit(1);
 	}
 	$path = $_SERVER['PATH_INFO'];
-	if (is_dir(SRC_DIR . $path)) {
-		delTree(SRC_DIR . $path);
+	if (is_dir(PROJECT_DIR . $path)) {
+		delTree(PROJECT_DIR . $path);
 		delTree(DIST_DIR . $path);
 	} else {
-		unlink(SRC_DIR . $path);
+		unlink(PROJECT_DIR . $path);
 		if (str_ends_with($path, '.md')) {
 			// if it's a .md file, remove the corresponding .html file from DIST_DIR
 			$htmlPath = preg_replace('/\.md$/', '.html', $path);

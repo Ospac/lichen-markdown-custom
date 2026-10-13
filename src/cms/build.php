@@ -26,7 +26,7 @@ try {
 
 
     // Save all files to the distribution directory
-    save_all_to_dist(SRC_DIR);
+    save_all_to_dist(PROJECT_DIR);
 
     // Output success message
     echo "++ saved build output to " . DIST_DIR . "\n";

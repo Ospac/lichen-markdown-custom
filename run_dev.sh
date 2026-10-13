@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-PORT=8000
+PORT=${PORT:-8000}
 
 kill_port() {
     case "$(uname -s)" in

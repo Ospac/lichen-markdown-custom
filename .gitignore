@@ -1,9 +1,3 @@
 .DS_Store
-.idea
-run.sh
-/src/dist
 /dist
-src/update/bak
-www
-manifest
 .obsidian/

@@ -1,7 +1,6 @@
 <?php
 // Project paths. Markdown content lives outside the application skeleton.
 define('PROJECT_DIR', dirname(dirname(__DIR__)));
-define('SRC_DIR', PROJECT_DIR);
 define('PAGE_DIR', PROJECT_DIR . '/page');
 define('ASSET_DIR', PAGE_DIR . '/assets');
 define('DIST_DIR', PROJECT_DIR . '/dist');
