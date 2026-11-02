@@ -136,7 +136,8 @@ function render_func($path, $ext, $_src = "")
     include LAYOUT_DIR . '/' . $defaultLayoutFileName . '.php';
     $output = ob_get_clean();
     restore_error_handler();
-    return rewrite_internal_links($output, $path);
+    $output = rewrite_internal_links($output, $path);
+    return rewrite_asset_links($output, $path);
 }
 
 // -----------------------------------------------------------------------------
@@ -490,6 +491,27 @@ function rewrite_internal_links($html, $pagePath, $sourcePath = null) {
 
             $relativePath = str_repeat('../', count($baseSegments)) . implode('/', $resolved);
             return $matches[1] . $matches[2] . $relativePath . $parts[2] . $matches[2];
+        },
+        $html
+    );
+}
+
+// Rewrite root-relative public asset URLs so the static site also works when
+// deployed below a repository path, such as /lichen-markdown/ on GitHub Pages.
+function rewrite_asset_links($html, $pagePath) {
+    $outputPagePath = preg_replace('/\.md$/i', '.html', $pagePath);
+    $pageDirectory = trim(dirname($outputPagePath), '/');
+    $assetPrefix = str_repeat('../', $pageDirectory === '' ? 0 : count(explode('/', $pageDirectory)));
+
+    return preg_replace_callback(
+        '/(\b(?:href|src|srcset)\s*=\s*)(["\'])(.*?)\2/is',
+        function ($matches) use ($assetPrefix) {
+            $value = preg_replace(
+                '~(^|[\s,(])/(?:page/)?assets/~',
+                '$1' . $assetPrefix . 'assets/',
+                $matches[3]
+            );
+            return $matches[1] . $matches[2] . $value . $matches[2];
         },
         $html
     );
