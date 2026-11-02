@@ -379,13 +379,11 @@ function local_resource_path($url, $basePath) {
     // Assets may not have been symlinked into dist yet while a page is built.
     if (str_starts_with($resolved, DIST_DIR . '/')) {
         $publicPath = substr($resolved, strlen(DIST_DIR));
-        $source = PROJECT_DIR . $publicPath;
+        // Use the same public-path mapping as the build process. This keeps
+        // page/assets available while a page is rendered before its symlink
+        // has been created in dist/assets.
+        $source = source_path($publicPath);
         if (is_file($source)) return $source;
-
-        if (str_starts_with($publicPath, '/assets/')) {
-            $source = PAGE_DIR . substr($publicPath, strlen('/assets'));
-            if (is_file($source)) return $source;
-        }
     }
     return null;
 }

@@ -59,7 +59,7 @@ Ursula K. Le Guin
 ## 로컬 이미지
 
 ```markdown
-![여기에 이미지 대체 텍스트를 입력하세요](/assets/image/dandi.jpg)
+![여기에 이미지 대체 텍스트를 입력하세요](/assets/image/index/dandi.jpg)
 ```
 
 ## 외부 이미지
