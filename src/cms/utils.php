@@ -136,7 +136,6 @@ function render_func($path, $ext, $_src = "")
     include LAYOUT_DIR . '/' . $defaultLayoutFileName . '.php';
     $output = ob_get_clean();
     restore_error_handler();
-    $output = rewrite_asset_paths($output, $path);
     return rewrite_internal_links($output, $path);
 }
 
@@ -160,8 +159,6 @@ function save_dist($relative_src_path)
         for ($attempt = 0; $attempt < 5; $attempt++) {
             $_md_src = fopen($sourcePath, "r") or die("File not found: " . $relative_src_path);
             $output = render_func($publicPath, $ext, $_md_src);
-            $output = rewrite_asset_paths($output, $publicPath);
-            $output = rewrite_internal_links($output, $publicPath);
             if ($pageSize !== null) {
                 $output = inject_page_size($output, $pageSize);
             }
@@ -363,7 +360,9 @@ function local_resource_path($url, $basePath) {
     if ($url === '') return null;
 
     if ($url[0] === '/') {
-        $path = PROJECT_DIR . '/' . ltrim($url, '/');
+        // Root-relative URLs point to the public build root. Assets are stored
+        // under page/assets in the source tree, but are exposed as /assets.
+        $path = DIST_DIR . '/' . ltrim($url, '/');
     } else {
         $path = dirname($basePath) . '/' . $url;
     }
@@ -379,8 +378,14 @@ function local_resource_path($url, $basePath) {
 
     // Assets may not have been symlinked into dist yet while a page is built.
     if (str_starts_with($resolved, DIST_DIR . '/')) {
-        $source = PROJECT_DIR . '/' . ltrim(substr($resolved, strlen(DIST_DIR)), '/');
+        $publicPath = substr($resolved, strlen(DIST_DIR));
+        $source = PROJECT_DIR . $publicPath;
         if (is_file($source)) return $source;
+
+        if (str_starts_with($publicPath, '/assets/')) {
+            $source = PAGE_DIR . substr($publicPath, strlen('/assets'));
+            if (is_file($source)) return $source;
+        }
     }
     return null;
 }
@@ -441,29 +446,6 @@ function calculate_page_size($html, $outputPath) {
         if (is_file($file)) $total += filesize($file);
     }
     return $total;
-}
-
-// -----------------------------------------------------------------------------
-// URL rewriting
-// -----------------------------------------------------------------------------
-
-// Return an asset URL relative to the rendered page's directory.
-function asset_url($pagePath, $assetPath) {
-    $pageDirectory = trim(str_replace('\\', '/', dirname($pagePath)), '/');
-    $depth = $pageDirectory === '' ? 0 : count(explode('/', $pageDirectory));
-
-    return str_repeat('../', $depth) . ltrim($assetPath, '/');
-}
-
-// Static pages cannot resolve root-relative asset URLs when served below a domain root.
-function rewrite_asset_paths($html, $pagePath) {
-    return preg_replace_callback(
-        '/(["\'])\/assets\/([^"\']*)/',
-        function ($matches) use ($pagePath) {
-            return $matches[1] . asset_url($pagePath, 'assets/' . $matches[2]);
-        },
-        $html
-    );
 }
 
 // Static builds expose rendered Markdown files as .html files, not .md routes.
