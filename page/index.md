@@ -1,1 +1,1 @@
-![dandi.jpg](assets/image/index/dandi.jpg)
+![cup_moss_lichens.png](assets/image/index/cup_moss_lichens.png)
